@@ -1,9 +1,8 @@
 # top-level namespace source files
 target_sources(
-    zench
+    libzench
         PRIVATE
-            Private.cpp
-            Public.cpp
+            ZMachine.cpp
 )
 # sub-namespace source directories
 # NOTE: none yet!

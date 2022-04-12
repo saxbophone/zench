@@ -9,7 +9,7 @@ else()
     set(ZENCH_SUBPROJECT ON)
 endif()
 
-project(zench VERSION 0.4.1 LANGUAGES CXX)
+project(zench VERSION 0.0.1 LANGUAGES CXX)
 
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
@@ -135,11 +135,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 # a better way to load dependencies
 include(CPM)
 
-# library
-add_subdirectory(zench)
-# unit tests --only enable if requested AND we're not building as a sub-project
-if(ENABLE_TESTS AND NOT ZENCH_SUBPROJECT)
-    message(STATUS "[zench] Unit Tests Enabled")
-    add_subdirectory(tests)
-    enable_testing()
-endif()
+add_subdirectory(zenchlib)
+
+add_executable(zench main.cpp)
+target_link_libraries(zench Zench::libzench)
