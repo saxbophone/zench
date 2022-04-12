@@ -30,9 +30,9 @@ namespace com::saxbophone::zench {
 
         explicit operator bool(); // returns true if the ZMachine is runnable
 
-        bool is_running();
+        bool is_running(); // returns true if a runnable machine has not quit
 
-        void execute();
+        void execute(); // executes one instruction
     };
 }
 
