@@ -14,8 +14,8 @@
  *
  */
 
-#ifndef COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
-#define COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
+#ifndef COM_SAXBOPHONE_ZENCH_ZMACHINE_HPP
+#define COM_SAXBOPHONE_ZENCH_ZMACHINE_HPP
 
 #include <cstdint>
 #include <istream>

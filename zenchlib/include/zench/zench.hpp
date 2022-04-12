@@ -14,12 +14,14 @@
  *
  */
 
-#ifndef COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
-#define COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
+#ifndef COM_SAXBOPHONE_ZENCH_ZENCH_HPP
+#define COM_SAXBOPHONE_ZENCH_ZENCH_HPP
 
-#include <istream>
+#include <string>
 
 namespace com::saxbophone::zench {
+    std::string VERSION = ZENCH_VERSION_STRING;
+    std::string VERSION_DESCRIPTION = "zench v" ZENCH_VERSION_STRING;
 }
 
 #endif // include guard

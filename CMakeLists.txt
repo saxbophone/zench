@@ -139,3 +139,5 @@ add_subdirectory(zenchlib)
 
 add_executable(zench main.cpp)
 target_link_libraries(zench Zench::libzench)
+
+install(TARGETS zench)
