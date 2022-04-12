@@ -1,8 +1,8 @@
 #include <catch2/catch.hpp>
 
-#include <zygodactyl/Public.hpp>
+#include <zench/Public.hpp>
 
-using namespace com::saxbophone::zygodactyl;
+using namespace com::saxbophone::zench;
 // test case to check network construction and train movement
 TEST_CASE("Library works") {
     REQUIRE(library_works());

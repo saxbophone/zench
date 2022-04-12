@@ -2,14 +2,14 @@
 # minimum CMake version required for C++20 support, among other things
 cmake_minimum_required(VERSION 3.15)
 
-# detect if Zygodactyl is being used as a sub-project of another CMake project
+# detect if Zench is being used as a sub-project of another CMake project
 if(NOT DEFINED PROJECT_NAME)
-    set(ZYGODACTYL_SUBPROJECT OFF)
+    set(ZENCH_SUBPROJECT OFF)
 else()
-    set(ZYGODACTYL_SUBPROJECT ON)
+    set(ZENCH_SUBPROJECT ON)
 endif()
 
-project(zygodactyl VERSION 0.4.1 LANGUAGES CXX)
+project(zench VERSION 0.4.1 LANGUAGES CXX)
 
 find_program(CCACHE_PROGRAM ccache)
 if(CCACHE_PROGRAM)
@@ -27,24 +27,24 @@ endif()
 
 # set some handy custom variables to detect Release-type builds from Debug-type ones
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(ZYGODACTYL_BUILD_DEBUG ON)
-    set(ZYGODACTYL_BUILD_RELEASE OFF)
+    set(ZENCH_BUILD_DEBUG ON)
+    set(ZENCH_BUILD_RELEASE OFF)
 else()
-    set(ZYGODACTYL_BUILD_DEBUG OFF)
-    set(ZYGODACTYL_BUILD_RELEASE ON)
+    set(ZENCH_BUILD_DEBUG OFF)
+    set(ZENCH_BUILD_RELEASE ON)
 endif()
 
-message(STATUS "[zygodactyl] Build Mode: ${CMAKE_BUILD_TYPE}")
+message(STATUS "[zench] Build Mode: ${CMAKE_BUILD_TYPE}")
 
 # set the C++ standard to use to C++20 always
-set(ZYGODACTYL_CXX_STANDARD "20")
-message(STATUS "[zygodactyl] C++ Standard set to C++${ZYGODACTYL_CXX_STANDARD}")
-set(CMAKE_CXX_STANDARD ${ZYGODACTYL_CXX_STANDARD})
+set(ZENCH_CXX_STANDARD "20")
+message(STATUS "[zench] C++ Standard set to C++${ZENCH_CXX_STANDARD}")
+set(CMAKE_CXX_STANDARD ${ZENCH_CXX_STANDARD})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(CMakeDependentOption)
 # if building in Release mode, provide an option to explicitly enable tests if desired (always ON for other builds, OFF by default for Release builds)
-cmake_dependent_option(ENABLE_TESTS "Build the unit tests in release mode?" OFF ZYGODACTYL_BUILD_RELEASE ON)
+cmake_dependent_option(ENABLE_TESTS "Build the unit tests in release mode?" OFF ZENCH_BUILD_RELEASE ON)
 
 # Premature Optimisation causes problems. Commented out code below allows detection and enabling of LTO.
 # It's not being used currently because it seems to cause linker errors with Clang++ on Ubuntu if the library
@@ -54,37 +54,37 @@ cmake_dependent_option(ENABLE_TESTS "Build the unit tests in release mode?" OFF 
 
 # include(CheckIPOSupported)
 # check_ipo_supported(RESULT IPO_SUPPORTED)
-# # If we're in Release mode, set ZYGODACTYL_USE_IPO to ON by default if it's detected as supported (user can always explicitly enable it in Release mode)
-# cmake_dependent_option(ZYGODACTYL_USE_IPO "Use Link-Time/Inter-Procedural Optimisation?" ${IPO_SUPPORTED} ZYGODACTYL_BUILD_RELEASE OFF)
-# if(ZYGODACTYL_USE_IPO)
-#     message(STATUS "[zygodactyl] Link-Time-Optimisation Enabled")
+# # If we're in Release mode, set ZENCH_USE_IPO to ON by default if it's detected as supported (user can always explicitly enable it in Release mode)
+# cmake_dependent_option(ZENCH_USE_IPO "Use Link-Time/Inter-Procedural Optimisation?" ${IPO_SUPPORTED} ZENCH_BUILD_RELEASE OFF)
+# if(ZENCH_USE_IPO)
+#     message(STATUS "[zench] Link-Time-Optimisation Enabled")
 # endif()
 
 set(
-    ZYGODACTYL_VERSION_STRING
+    ZENCH_VERSION_STRING
     "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
 )
-set(ZYGODACTYL_ESCAPED_VERSION_STRING "\"${ZYGODACTYL_VERSION_STRING}\"")
+set(ZENCH_ESCAPED_VERSION_STRING "\"${ZENCH_VERSION_STRING}\"")
 # end basic metadata
 
 # This is a special target which only exists to capture compilation options
-# used for zygodactyl and its tests. This is to avoid setting global compiler
+# used for zench and its tests. This is to avoid setting global compiler
 # options which would be inherited by dependencies as well, which is bad
-# because zygodactyl uses strict compiler warning options which not all other
+# because zench uses strict compiler warning options which not all other
 # projects can build successfully with.
 # Any target linked with this one will inherit the compiler options used for
-# zygodactyl.
-add_library(zygodactyl-compiler-options INTERFACE)
+# zench.
+add_library(zench-compiler-options INTERFACE)
 
 # used for enabling additional compiler options if supported
 include(CheckCXXCompilerFlag)
 
 function(enable_cxx_compiler_flag_if_supported flag)
-    message(STATUS "[zygodactyl] Checking if compiler supports warning flag '${flag}'")
+    message(STATUS "[zench] Checking if compiler supports warning flag '${flag}'")
     check_cxx_compiler_flag("${flag}" flag_supported)
     if(flag_supported)
-        message(STATUS "[zygodactyl] Enabling warning flag '${flag}'")
-        target_compile_options(zygodactyl-compiler-options INTERFACE "${flag}")
+        message(STATUS "[zench] Enabling warning flag '${flag}'")
+        target_compile_options(zench-compiler-options INTERFACE "${flag}")
     endif()
     unset(flag_supported CACHE)
 endfunction()
@@ -136,10 +136,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 include(CPM)
 
 # library
-add_subdirectory(zygodactyl)
+add_subdirectory(zench)
 # unit tests --only enable if requested AND we're not building as a sub-project
-if(ENABLE_TESTS AND NOT ZYGODACTYL_SUBPROJECT)
-    message(STATUS "[zygodactyl] Unit Tests Enabled")
+if(ENABLE_TESTS AND NOT ZENCH_SUBPROJECT)
+    message(STATUS "[zench] Unit Tests Enabled")
     add_subdirectory(tests)
     enable_testing()
 endif()

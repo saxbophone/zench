@@ -6,7 +6,7 @@
 
 #include "Private.hpp"
 
-namespace com::saxbophone::zygodactyl::PRIVATE {
+namespace com::saxbophone::zench::PRIVATE {
     bool library_works() {
         return true;
     }

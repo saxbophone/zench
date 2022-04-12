@@ -1,6 +1,6 @@
 # top-level namespace source files
 target_sources(
-    zygodactyl
+    zench
         PRIVATE
             Private.cpp
             Public.cpp

@@ -14,10 +14,10 @@
  *
  */
 
-#ifndef COM_SAXBOPHONE_ZYGODACTYL_PUBLIC_HPP
-#define COM_SAXBOPHONE_ZYGODACTYL_PUBLIC_HPP
+#ifndef COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
+#define COM_SAXBOPHONE_ZENCH_PUBLIC_HPP
 
-namespace com::saxbophone::zygodactyl {
+namespace com::saxbophone::zench {
     /**
      * @brief Stub test function for sample project
      * @returns Whether the test library "works" or not, which is a vague

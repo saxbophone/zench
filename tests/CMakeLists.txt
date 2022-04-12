@@ -10,8 +10,8 @@ target_sources(tests PRIVATE main.cpp example.cpp)
 target_link_libraries(
     tests
     PRIVATE
-        zygodactyl-compiler-options  # tests use same compiler options as main project
-        zygodactyl
+        zench-compiler-options  # tests use same compiler options as main project
+        zench
         Catch2::Catch2  # unit testing framework
 )
 
