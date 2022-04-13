@@ -22,6 +22,7 @@
 #include <istream>
 #include <optional>
 #include <span>
+#include <unordered_set>
 #include <vector>
 
 namespace com::saxbophone::zench {
@@ -34,6 +35,8 @@ namespace com::saxbophone::zench {
         bool is_running(); // returns true if a runnable machine has not quit
 
         void execute(); // executes one instruction
+
+        static const std::unordered_set<char> SUPPORTED_VERSIONS;
 
     private:
         using Byte = std::uint8_t;
@@ -49,12 +52,16 @@ namespace com::saxbophone::zench {
             std::vector<Word> local_variables; // current contents of locals
             std::vector<Word> local_stack; // the "inner" stack directly accessible to routine
         };
+        bool _load_header(std::istream& story_file);
         // TODO: consider whether these two functions should be merged
         Word& _global_variable(Byte number);
         Word& _local_variable(Byte number);
         // TODO: local stack access/manipulation
 
-        PC _pc : 19; // program counter
+        bool _state_valid = false; // whether the machine is runnable
+        bool _is_running = false; // whether the machine has not quit
+
+        PC _pc : 19 = 0x000; // program counter
         /*
          * the entire main memory of the VM, comprising of dynamic, static and
          * high memory all joined together continguously.
