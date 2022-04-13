@@ -44,6 +44,8 @@ namespace com::saxbophone::zench {
         using SWord = std::int16_t; // signed Word
         // NOTE: not a packed address --it's an index to a specific byte.
         using PC = std::uint32_t; // should store these as a 19-bit bitfield, max is 512KiB which fits in that many bits
+        using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
+        using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
 
         struct StackFrame {
             PC return_pc : 19; // address to return to from this routine
@@ -52,6 +54,9 @@ namespace com::saxbophone::zench {
             std::vector<Word> local_variables; // current contents of locals
             std::vector<Word> local_stack; // the "inner" stack directly accessible to routine
         };
+        // TODO: create a WordDelegate class which can refer to the bytes its
+        // made up of and write back to them when =operator is used on it
+        Word _load_word(WordAddress address);
         bool _load_header(std::istream& story_file);
         // TODO: consider whether these two functions should be merged
         Word& _global_variable(Byte number);
@@ -60,6 +65,10 @@ namespace com::saxbophone::zench {
 
         bool _state_valid = false; // whether the machine is runnable
         bool _is_running = false; // whether the machine has not quit
+
+        ByteAddress _static_memory_begin; // derived from header
+        ByteAddress _dynamic_memory_begin; // we have to work this out
+        ByteAddress _high_memory_begin; // "high memory mark", derived from header
 
         PC _pc : 19 = 0x000; // program counter
         /*
