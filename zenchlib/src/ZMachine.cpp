@@ -27,7 +27,9 @@ namespace com::saxbophone::zench {
             return; // failed to load rest of the story
         }
         this->_setup_accessors();
-        this->_state_valid = true; // XXX: stub to check header loading
+        this->_pc = this->_load_word(0x06); // load initial program counter
+        this->_call_stack.emplace_back(); // setup dummy stack frame
+        this->_state_valid = true; // this VM is ready to go
     }
 
     ZMachine::operator bool() {
@@ -73,6 +75,7 @@ namespace com::saxbophone::zench {
     bool ZMachine::_load_remaining(std::istream& story_file) {
         // pre-allocate to the first byte of high memory (we don't know how much else there is)
         this->_memory.reserve(this->_static_memory_begin);
+        // read in the remainder of the memory in the storyfile
         for (auto it = std::istreambuf_iterator<char>(story_file); it != std::istreambuf_iterator<char>(); it++) {
             this->_memory.push_back((Byte)*it);
         }
