@@ -4,6 +4,10 @@
  * <Copyright information goes here>
  */
 
+#include <algorithm>
+#include <iostream>
+#include <iterator>
+
 #include <zench/ZMachine.hpp>
 
 namespace com::saxbophone::zench {
@@ -20,6 +24,11 @@ namespace com::saxbophone::zench {
         if (not this->_load_header(story_file)) {
             return; // failed to load header
         }
+        if (not this->_load_remaining(story_file)) {
+            return; // failed to load rest of the story
+        }
+        std::cout << this->_static_memory_begin << " " << this->_static_memory_end << " " << this->_high_memory_begin << std::endl;
+        this->_setup_accessors();
         this->_state_valid = true; // XXX: stub to check header loading
     }
 
@@ -54,12 +63,33 @@ namespace com::saxbophone::zench {
         this->_static_memory_begin = this->_load_word(0x0e);
         // validate size of dynamic memory (must be at least 64 bytes)
         if (this->_static_memory_begin < 64) { return false; }
-        // skip _dynamic_memory_begin for now --we won't know it until we've read the rest of the file
+        // skip _static_memory_end for now --we won't know it until we've read the rest of the file
         this->_high_memory_begin = this->_load_word(0x04);
         // bottom of high memory must not overlap top of dynamic memory
         if (this->_high_memory_begin < this->_static_memory_begin) {
             return false; // validate
         }
         return true;
+    }
+
+    bool ZMachine::_load_remaining(std::istream& story_file) {
+        // pre-allocate to the first byte of high memory (we don't know how much else there is)
+        this->_memory.reserve(this->_static_memory_begin);
+        for (auto it = std::istreambuf_iterator<char>(story_file); it != std::istreambuf_iterator<char>(); it++) {
+            this->_memory.push_back((Byte)*it);
+        }
+        // verify length of storyfile
+        if (this->_memory.size() > 128 * 1024) { // XXX: Version 1-3: 128KiB
+            return false;
+        }
+        // we can now work out where the end of static memory is
+        this->_static_memory_end = std::clamp((BigAddress)(this->_memory.size() - 1), BigAddress{0x0}, BigAddress{0x0ffff});
+        return true;
+    }
+
+    void ZMachine::_setup_accessors() {
+        this->_writeable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_begin);
+        this->_readable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_end);
+        std::cout << this->_writeable_memory.size() << " " << this->_readable_memory.size() << std::endl;
     }
 }
