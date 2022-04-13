@@ -5,6 +5,7 @@
  */
 
 #include <algorithm>
+#include <iostream>
 #include <iterator>
 
 #include <zench/ZMachine.hpp>
@@ -26,6 +27,7 @@ namespace com::saxbophone::zench {
         if (not this->_load_remaining(story_file)) {
             return; // failed to load rest of the story
         }
+        std::cout << this->_static_memory_begin << " " << this->_static_memory_end << " " << this->_high_memory_begin << std::endl;
         this->_setup_accessors();
         this->_state_valid = true; // XXX: stub to check header loading
     }
@@ -88,5 +90,6 @@ namespace com::saxbophone::zench {
     void ZMachine::_setup_accessors() {
         this->_writeable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_begin);
         this->_readable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_end);
+        std::cout << this->_writeable_memory.size() << " " << this->_readable_memory.size() << std::endl;
     }
 }
