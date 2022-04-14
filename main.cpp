@@ -14,6 +14,8 @@ int main(int argc, const char* argv[]) {
         std::ifstream story_file(argv[1], std::ios::binary);
         // construct new ZMachine instance from the open story file
         if (zench::ZMachine vm = zench::ZMachine(story_file)) { // run the vm if runnable
+            // close the story file to prevent us locking it after we no longer need it
+            story_file.close();
             while (vm.is_running()) {
                 // XXX: may change in the future, but this is the basis
                 vm.execute();
