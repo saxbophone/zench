@@ -20,8 +20,8 @@
 #include <string>
 
 namespace com::saxbophone::zench {
-    std::string VERSION = ZENCH_VERSION_STRING;
-    std::string VERSION_DESCRIPTION = "zench v" ZENCH_VERSION_STRING;
+    const std::string VERSION = ZENCH_VERSION_STRING;
+    const std::string VERSION_DESCRIPTION = "zench v" ZENCH_VERSION_STRING;
 }
 
 #endif // include guard
