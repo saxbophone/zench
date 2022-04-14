@@ -14,10 +14,14 @@ namespace com::saxbophone::zench {
         // check stream can be read from
         if (not story_file.good()) { return; }
         // check file version
-        char file_version = story_file.peek();
-        if (not ZMachine::SUPPORTED_VERSIONS.contains(file_version)) {
-            // TODO: log error, file version, and supported versions
-            return;
+        std::uint8_t file_version = story_file.peek();
+        if (0 < file_version and file_version < 9) {
+            if (not ZMachine::SUPPORTED_VERSIONS.test(file_version - 1)) {
+                // TODO: log error, file version, and supported versions
+                return;
+            }
+        } else {
+            return; // invalid version byte (not a well-formed Quetzal file)
         }
         // load story file
         if (not this->_load_header(story_file)) {
@@ -44,14 +48,12 @@ namespace com::saxbophone::zench {
         return;
     }
 
-    const std::unordered_set<char> ZMachine::SUPPORTED_VERSIONS = {0x03,};
-
-    ZMachine::Word ZMachine::_load_word(WordAddress address) {
+    ZMachine::Word ZMachine::_load_word(ByteAddress address) {
         return (this->_memory[address] << 8) + this->_memory[address + 1];
     }
 
     bool ZMachine::_load_header(std::istream& story_file) {
-        this->_memory.resize(64); // pre-allocate enough for header
+        this->_memory.resize(ZMachine::HEADER_SIZE); // pre-allocate enough for header
         for (auto& byte : this->_memory) {
             auto next = story_file.get();
             if (not story_file) { // handle EOF/failbit
@@ -62,7 +64,7 @@ namespace com::saxbophone::zench {
         // work out the memory map
         this->_static_memory_begin = this->_load_word(0x0e);
         // validate size of dynamic memory (must be at least 64 bytes)
-        if (this->_static_memory_begin < 64) { return false; }
+        if (this->_static_memory_begin < ZMachine::HEADER_SIZE) { return false; }
         // skip _static_memory_end for now --we won't know it until we've read the rest of the file
         this->_high_memory_begin = this->_load_word(0x04);
         // bottom of high memory must not overlap top of dynamic memory
@@ -73,16 +75,17 @@ namespace com::saxbophone::zench {
     }
 
     bool ZMachine::_load_remaining(std::istream& story_file) {
-        // pre-allocate to the first byte of high memory (we don't know how much else there is)
-        this->_memory.reserve(this->_static_memory_begin);
+        // pre-allocate to the maximum allowed storyfile size
+        this->_memory.reserve(ZMachine::STORY_FILE_MAX_SIZE);
         // read in the remainder of the memory in the storyfile
         for (auto it = std::istreambuf_iterator<char>(story_file); it != std::istreambuf_iterator<char>(); it++) {
+            if (this->_memory.size() == ZMachine::STORY_FILE_MAX_SIZE) {
+                return false; // storyfile too large
+            }
             this->_memory.push_back((Byte)*it);
         }
-        // verify length of storyfile
-        if (this->_memory.size() > 128 * 1024) { // XXX: Version 1-3: 128KiB
-            return false;
-        }
+        // re-allocate memory down to exact size --we're not going to resize it again
+        this->_memory.shrink_to_fit();
         // we can now work out where the end of static memory is
         this->_static_memory_end = std::clamp((BigAddress)(this->_memory.size() - 1), BigAddress{0x0}, BigAddress{0x0ffff});
         return true;
