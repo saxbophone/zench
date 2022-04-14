@@ -21,7 +21,8 @@
 #include <cstdint>       // fixed-width types
 
 #include <bitset>        // bitset
-#include <deque>
+#include <deque>         // deque
+#include <exception>     // exception
 #include <istream>       // istream
 #include <optional>      // optional
 #include <span>          // span
@@ -30,10 +31,28 @@
 namespace com::saxbophone::zench {
     class ZMachine {
     public:
+        // base class for all of zench's exceptions
+        class Exception : public std::exception {};
+        class CantReadStoryFileException : public Exception {
+            const char* what() const throw() {
+                return "Can't read story file";
+            }
+        };
+        class UnsupportedVersionException : public Exception {
+            // TODO: rewrite this out-of-header to report supported versions
+            // and actual version given
+            const char* what() const throw() {
+                return "Story file version not supported";
+            }
+        };
+        class InvalidStoryFileException : public Exception {
+            const char* what() const throw() {
+                return "Invalid story file";
+            }
+        };
+
         // NOTE: it is permitted for story_file to be closed for further reading after this constructor returns
         ZMachine(std::istream& story_file);
-
-        explicit operator bool(); // returns true if the ZMachine is runnable
 
         bool is_running(); // returns true if a runnable machine has not quit
 
@@ -61,9 +80,9 @@ namespace com::saxbophone::zench {
         // made up of and write back to them when =operator is used on it
         Word _load_word(WordAddress address);
         // loads file header only
-        bool _load_header(std::istream& story_file);
+        void _load_header(std::istream& story_file);
         // loads the rest of the file after header has been loaded
-        bool _load_remaining(std::istream& story_file);
+        void _load_remaining(std::istream& story_file);
         // sets up span accessors for reading according to memory map
         void _setup_accessors();
         // TODO: consider whether these two functions should be merged

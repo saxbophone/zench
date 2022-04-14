@@ -12,32 +12,27 @@
 namespace com::saxbophone::zench {
     ZMachine::ZMachine(std::istream& story_file) {
         // check stream can be read from
-        if (not story_file.good()) { return; }
+        if (not story_file.good()) {
+            throw CantReadStoryFileException();
+        }
         // check file version
         std::uint8_t file_version = story_file.peek();
         if (0 < file_version and file_version < 9) {
-            if (not ZMachine::SUPPORTED_VERSIONS.test(file_version - 1)) {
+            if (not SUPPORTED_VERSIONS.test(file_version - 1)) {
                 // TODO: log error, file version, and supported versions
-                return;
+                throw UnsupportedVersionException();
             }
         } else {
-            return; // invalid version byte (not a well-formed Quetzal file)
+            // invalid version byte (not a well-formed Quetzal file)
+            throw InvalidStoryFileException();
         }
         // load story file
-        if (not this->_load_header(story_file)) {
-            return; // failed to load header
-        }
-        if (not this->_load_remaining(story_file)) {
-            return; // failed to load rest of the story
-        }
+        this->_load_header(story_file);
+        this->_load_remaining(story_file);
         this->_setup_accessors();
         this->_pc = this->_load_word(0x06); // load initial program counter
         this->_call_stack.emplace_back(); // setup dummy stack frame
         this->_state_valid = true; // this VM is ready to go
-    }
-
-    ZMachine::operator bool() {
-        return this->_state_valid;
     }
 
     bool ZMachine::is_running() {
@@ -52,35 +47,36 @@ namespace com::saxbophone::zench {
         return (this->_memory[address] << 8) + this->_memory[address + 1];
     }
 
-    bool ZMachine::_load_header(std::istream& story_file) {
+    void ZMachine::_load_header(std::istream& story_file) {
         this->_memory.resize(ZMachine::HEADER_SIZE); // pre-allocate enough for header
         for (auto& byte : this->_memory) {
             auto next = story_file.get();
             if (not story_file) { // handle EOF/failbit
-                return false;
+                throw InvalidStoryFileException(); // header ended prematurely
             }
             byte = next;
         }
         // work out the memory map
         this->_static_memory_begin = this->_load_word(0x0e);
         // validate size of dynamic memory (must be at least 64 bytes)
-        if (this->_static_memory_begin < ZMachine::HEADER_SIZE) { return false; }
+        if (this->_static_memory_begin < ZMachine::HEADER_SIZE) {
+            throw InvalidStoryFileException();
+        }
         // skip _static_memory_end for now --we won't know it until we've read the rest of the file
         this->_high_memory_begin = this->_load_word(0x04);
         // bottom of high memory must not overlap top of dynamic memory
         if (this->_high_memory_begin < this->_static_memory_begin) {
-            return false; // validate
+            throw InvalidStoryFileException();
         }
-        return true;
     }
 
-    bool ZMachine::_load_remaining(std::istream& story_file) {
+    void ZMachine::_load_remaining(std::istream& story_file) {
         // pre-allocate to the maximum allowed storyfile size
         this->_memory.reserve(ZMachine::STORY_FILE_MAX_SIZE);
         // read in the remainder of the memory in the storyfile
         for (auto it = std::istreambuf_iterator<char>(story_file); it != std::istreambuf_iterator<char>(); it++) {
             if (this->_memory.size() == ZMachine::STORY_FILE_MAX_SIZE) {
-                return false; // storyfile too large
+                throw InvalidStoryFileException(); // storyfile too large
             }
             this->_memory.push_back((Byte)*it);
         }
@@ -88,7 +84,6 @@ namespace com::saxbophone::zench {
         this->_memory.shrink_to_fit();
         // we can now work out where the end of static memory is
         this->_static_memory_end = std::clamp((Address)(this->_memory.size() - 1), Address{0x0}, Address{0x0ffff});
-        return true;
     }
 
     void ZMachine::_setup_accessors() {
