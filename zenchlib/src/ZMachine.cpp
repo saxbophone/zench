@@ -87,7 +87,7 @@ namespace com::saxbophone::zench {
         // re-allocate memory down to exact size --we're not going to resize it again
         this->_memory.shrink_to_fit();
         // we can now work out where the end of static memory is
-        this->_static_memory_end = std::clamp((BigAddress)(this->_memory.size() - 1), BigAddress{0x0}, BigAddress{0x0ffff});
+        this->_static_memory_end = std::clamp((Address)(this->_memory.size() - 1), Address{0x0}, Address{0x0ffff});
         return true;
     }
 

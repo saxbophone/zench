@@ -45,13 +45,13 @@ namespace com::saxbophone::zench {
         using Byte = std::uint8_t;
         using Word = std::uint16_t;
         using SWord = std::int16_t; // signed Word
-        // NOTE: not a packed address --it's an index to a specific byte.
-        using BigAddress = std::uint32_t; // should store these as a 19-bit bitfield, max is 512KiB which fits in that many bits
+        // these addresses can address any byte in memory. Range depends on version, but never bigger than 19-bit.
+        using Address = std::uint32_t;
         using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
         using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
 
         struct StackFrame {
-            BigAddress return_pc : 19; // address to return to from this routine
+            Address return_pc; // address to return to from this routine
             std::optional<Byte> result_ref; // variable to store result in, if any
             std::bitset<7> arguments_supplied;
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
@@ -81,7 +81,7 @@ namespace com::saxbophone::zench {
         ByteAddress _static_memory_end; // we have to work this out
         ByteAddress _high_memory_begin; // "high memory mark", derived from header
 
-        BigAddress _pc : 19 = 0x000; // program counter
+        Address _pc = 0x000000; // program counter
         /*
          * the entire main memory of the VM, comprising of dynamic, static and
          * high memory all joined together continguously.
