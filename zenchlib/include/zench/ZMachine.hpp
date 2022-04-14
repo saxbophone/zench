@@ -34,19 +34,19 @@ namespace com::saxbophone::zench {
         // base class for all of zench's exceptions
         class Exception : public std::exception {};
         class CantReadStoryFileException : public Exception {
-            const char* what() const throw() {
+            const char* what() const noexcept {
                 return "Can't read story file";
             }
         };
         class UnsupportedVersionException : public Exception {
             // TODO: rewrite this out-of-header to report supported versions
             // and actual version given
-            const char* what() const throw() {
+            const char* what() const noexcept {
                 return "Story file version not supported";
             }
         };
         class InvalidStoryFileException : public Exception {
-            const char* what() const throw() {
+            const char* what() const noexcept {
                 return "Invalid story file";
             }
         };
