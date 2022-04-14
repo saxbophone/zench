@@ -5,6 +5,7 @@
  */
 
 #include <algorithm>
+#include <iostream> // XXX: debug
 #include <iterator>
 
 #include <zench/ZMachine.hpp>
@@ -40,7 +41,10 @@ namespace com::saxbophone::zench {
     }
 
     void ZMachine::execute() {
-        return;
+        Instruction current = this->_decode_instruction();
+        // XXX: debug
+        std::cout << this->_pc << ": " << current.to_string(); // no newline due to cin.get()
+        std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 
     ZMachine::Word ZMachine::_load_word(ByteAddress address) {
@@ -89,5 +93,9 @@ namespace com::saxbophone::zench {
     void ZMachine::_setup_accessors() {
         this->_writeable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_begin);
         this->_readable_memory = std::span<Byte>{this->_memory}.subspan(0, this->_static_memory_end - 1);
+    }
+
+    ZMachine::Instruction ZMachine::_decode_instruction() {
+        return {};
     }
 }

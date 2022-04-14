@@ -17,16 +17,17 @@
 #ifndef COM_SAXBOPHONE_ZENCH_ZMACHINE_HPP
 #define COM_SAXBOPHONE_ZENCH_ZMACHINE_HPP
 
-#include <cstddef>       // size_t
-#include <cstdint>       // fixed-width types
+#include <cstddef>   // size_t
+#include <cstdint>   // fixed-width types
 
-#include <bitset>        // bitset
-#include <deque>         // deque
-#include <exception>     // exception
-#include <istream>       // istream
-#include <optional>      // optional
-#include <span>          // span
-#include <vector>        // vector
+#include <bitset>    // bitset
+#include <deque>     // deque
+#include <exception> // exception
+#include <istream>   // istream
+#include <optional>  // optional
+#include <span>      // span
+#include <string>    // string
+#include <vector>    // vector
 
 namespace com::saxbophone::zench {
     class ZMachine {
@@ -69,6 +70,12 @@ namespace com::saxbophone::zench {
         using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
         using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
 
+        struct Instruction {
+            std::string to_string() const {
+                return "Unknown Instruction!";
+            }
+        };
+
         struct StackFrame {
             Address return_pc; // address to return to from this routine
             std::optional<Byte> result_ref; // variable to store result in, if any
@@ -89,6 +96,9 @@ namespace com::saxbophone::zench {
         Word& _global_variable(Byte number);
         Word& _local_variable(Byte number);
         // TODO: local stack access/manipulation
+
+        // NOTE: this method advances the Program Counter (_pc)
+        Instruction _decode_instruction();
 
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
