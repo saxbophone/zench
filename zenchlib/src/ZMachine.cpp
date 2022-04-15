@@ -42,7 +42,7 @@ namespace com::saxbophone::zench {
 
     void ZMachine::execute() {
         // XXX: debug
-        std::cout << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
+        std::cout << std::hex << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
         std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 
@@ -190,6 +190,18 @@ namespace com::saxbophone::zench {
             } else { // it's a 2-byte branch
                 // use bottom 6 bits of first byte and all 8 of the second
                 instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + this->_memory[this->_pc++];
+            }
+        }
+        // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
+        if (instruction.arity == Instruction::Arity::OP0) {
+            if (instruction.opcode == 2 or instruction.opcode == 3) {
+                // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
+                while ((this->_memory[this->_pc] & 0b10000000) == 0) {
+                    this->_pc += 2;
+                    instruction.string_literal += 2;
+                }
+                this->_pc += 2;
+                instruction.string_literal += 2;
             }
         }
         // TODO: modulo program counter!

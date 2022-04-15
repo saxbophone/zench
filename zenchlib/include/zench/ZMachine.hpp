@@ -126,7 +126,7 @@ namespace com::saxbophone::zench {
             std::vector<Operand> operands;
             std::optional<Byte> store_variable;
             std::optional<Branch> branch;
-            // XXX: ignored text-to-print (encoded string) for now
+            std::size_t string_literal = 0; // set to > 0 if there's a string literal, value = number of bytes (not Z-chars!)
 
             std::string form_name() const {
                 switch (form) {
@@ -181,8 +181,12 @@ namespace com::saxbophone::zench {
                 return branch ? " # " + branch.value().to_string() : "";
             }
 
+            std::string trailing_string_literal() const {
+                return string_literal > 0 ? " Z-Str<" + std::to_string(string_literal) + " bytes>" : "";
+            }
+
             std::string to_string() const {
-                return opcode_name() + arguments() + store_code() + branch_code();
+                return opcode_name() + arguments() + store_code() + branch_code() + trailing_string_literal();
             }
         };
 
