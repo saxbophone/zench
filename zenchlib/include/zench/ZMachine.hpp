@@ -107,11 +107,20 @@ namespace com::saxbophone::zench {
                 LONG, SHORT, EXTENDED, VARIABLE,
             };
 
+            struct Branch {
+                bool on_true; // whether branch is on true (otherwise, on false)
+                SWord offset : 14; // branch offset
+
+                std::string to_string() const {
+                    return (on_true ? "[TRUE] " : "[FALSE] ") + std::to_string(offset);
+                }
+            };
+
             Opcode opcode;
             Form form; // XXX: technically, not in the instruction structure table in the spec, but it is mentioned
             std::vector<Operand> operands;
             std::optional<Byte> store_variable;
-            std::optional<SWord> branch_offset;
+            std::optional<Branch> branch;
             // XXX: ignored text-to-print (encoded string) for now
 
             std::string form_name() const {
@@ -159,16 +168,16 @@ namespace com::saxbophone::zench {
                 return arguments;
             }
 
-            std::string store() const {
+            std::string store_code() const {
                 return store_variable ? " -> @" + std::to_string(store_variable.value()) : "";
             }
 
-            std::string branch() const {
-                return branch_offset ? " #" + std::to_string(branch_offset.value()) : "";
+            std::string branch_code() const {
+                return branch ? " # " + branch.value().to_string() : "";
             }
 
             std::string to_string() const {
-                return opcode_name() + arguments() + store() + branch();
+                return opcode_name() + arguments() + store_code() + branch_code();
             }
         };
 

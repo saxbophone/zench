@@ -32,6 +32,8 @@ namespace com::saxbophone::zench {
         this->_load_remaining(story_file);
         this->_setup_accessors();
         this->_pc = this->_load_word(0x06); // load initial program counter
+        // XXX: hacked program counter to test a negative jump
+        this->_pc = 0x574e;
         this->_call_stack.emplace_back(); // setup dummy stack frame
         this->_state_valid = true; // this VM is ready to go
     }
@@ -176,14 +178,21 @@ namespace com::saxbophone::zench {
         }
         // handle branch if this instruction is branching
         if (this->_is_instruction_branch(instruction)) {
-            // TODO: decode branch address and store in branch_offset
+            // decode branch address and store in branch_offset
             Byte branch = this->_memory[this->_pc++];
+            instruction.branch = Instruction::Branch{
+                .on_true = (branch & 0b10000000) != 0,
+                .offset = 0,
+            };
             // bit 6 of the first branch byte is set if the offset value is 1 byte only
-            if (not (branch & 0b01000000)) { // it's clear, skip the second byte
-                this->_pc++; // XXX: don't just throw the last byte away
+            if ((branch & 0b01000000) != 0) { // it's a 1-byte branch
+                // use bottom 6 bits for offset
+                instruction.branch->offset = branch & 0b00111111;
+            } else { // it's a 2-byte branch
+                // use bottom 6 bits of first byte and all 8 of the second
+                Word offset = ((Word)(branch & 0b00111111) << 8) + this->_memory[this->_pc++];
+                instruction.branch->offset = (SWord)offset;
             }
-            // XXX: set branch_offset to some dummy value anyway to register it
-            instruction.branch_offset = -12345;
         }
         // TODO: modulo program counter!
         return instruction;
