@@ -195,13 +195,17 @@ namespace com::saxbophone::zench {
         // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
         if (instruction.arity == Instruction::Arity::OP0) {
             if (instruction.opcode == 2 or instruction.opcode == 3) {
+                instruction.trailing_string_literal = {
+                    .address = this->_pc,
+                    .length = 0,
+                };
                 // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
                 while ((this->_memory[this->_pc] & 0b10000000) == 0) {
                     this->_pc += 2;
-                    instruction.string_literal += 2;
+                    instruction.trailing_string_literal->length += 2;
                 }
                 this->_pc += 2;
-                instruction.string_literal += 2;
+                instruction.trailing_string_literal->length += 2;
             }
         }
         // TODO: modulo program counter!

@@ -120,13 +120,18 @@ namespace com::saxbophone::zench {
                 }
             };
 
+            struct StringLiteral {
+                Address address;
+                std::size_t length = 0;
+            };
+
             Opcode opcode;
             Form form; // XXX: technically, not in the instruction structure table in the spec, but it is mentioned
             Arity arity; // can't actually rely upon operands.size() as some 2-op opcodes have more than 2 args!
             std::vector<Operand> operands;
             std::optional<Byte> store_variable;
             std::optional<Branch> branch;
-            std::size_t string_literal = 0; // set to > 0 if there's a string literal, value = number of bytes (not Z-chars!)
+            std::optional<StringLiteral> trailing_string_literal;
 
             std::string form_name() const {
                 switch (form) {
@@ -181,12 +186,12 @@ namespace com::saxbophone::zench {
                 return branch ? " # " + branch.value().to_string() : "";
             }
 
-            std::string trailing_string_literal() const {
-                return string_literal > 0 ? " Z-Str<" + std::to_string(string_literal) + " bytes>" : "";
+            std::string string_literal() const {
+                return trailing_string_literal ? " Z-Str[" + std::to_string(trailing_string_literal->length) + "] @" + std::to_string(trailing_string_literal->address) : "";
             }
 
             std::string to_string() const {
-                return opcode_name() + arguments() + store_code() + branch_code() + trailing_string_literal();
+                return opcode_name() + arguments() + store_code() + branch_code() + string_literal();
             }
         };
 
