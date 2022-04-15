@@ -32,8 +32,6 @@ namespace com::saxbophone::zench {
         this->_load_remaining(story_file);
         this->_setup_accessors();
         this->_pc = this->_load_word(0x06); // load initial program counter
-        // XXX: hacked program counter to test a negative jump
-        this->_pc = 0x574e;
         this->_call_stack.emplace_back(); // setup dummy stack frame
         this->_state_valid = true; // this VM is ready to go
     }
@@ -44,7 +42,7 @@ namespace com::saxbophone::zench {
 
     void ZMachine::execute() {
         // XXX: debug
-        std::cout << std::hex << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
+        std::cout << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
         std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 
@@ -144,28 +142,22 @@ namespace com::saxbophone::zench {
         }
         // handle variable-form operand types
         if (instruction.form == Instruction::Form::VARIABLE) {
-            // read operand types from the next byte
-            Byte operand_types = this->_memory[this->_pc++];
-            // if bit 5 is not set, then it's 2-OP
-            if ((opcode & 0b00100000) == 0) {
-                // instruction.operands = {
-                //     (Instruction::OperandType)(operand_types >> 6),
-                //     (Instruction::OperandType)((operand_types >> 4) & 0b11),
-                // };
-                instruction.arity = Instruction::Arity::OP2;
-            }
-            // } else { // otherwise, read from operand type byte until OMITTED is found
-                for (int i = 4; i --> 0;) {
-                    Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
-                    if (type == Instruction::OperandType::OMITTED) {
-                        break;
-                    }
-                    instruction.operands.emplace_back(type);
-                }
-            // }
             // XXX: handle double-var opcodes (two operand type bytes)
             if (instruction.opcode == 12 or instruction.opcode == 26) {
                 throw UnsupportedVersionException();
+            }
+            // read operand types from the next byte
+            Byte operand_types = this->_memory[this->_pc++];
+            // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
+            if ((opcode & 0b00100000) == 0) {
+                instruction.arity = Instruction::Arity::OP2;
+            }
+            for (int i = 4; i --> 0;) {
+                Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
+                if (type == Instruction::OperandType::OMITTED) {
+                    break;
+                }
+                instruction.operands.emplace_back(type);
             }
         }
         // now we can read in the actual operand values
