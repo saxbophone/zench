@@ -107,6 +107,10 @@ namespace com::saxbophone::zench {
                 LONG, SHORT, EXTENDED, VARIABLE,
             };
 
+            enum class Arity {
+                OP0, OP1, OP2, VAR,
+            };
+
             struct Branch {
                 bool on_true; // whether branch is on true (otherwise, on false)
                 SWord offset : 14; // branch offset
@@ -118,6 +122,7 @@ namespace com::saxbophone::zench {
 
             Opcode opcode;
             Form form; // XXX: technically, not in the instruction structure table in the spec, but it is mentioned
+            Arity arity; // can't actually rely upon operands.size() as some 2-op opcodes have more than 2 args!
             std::vector<Operand> operands;
             std::optional<Byte> store_variable;
             std::optional<Branch> branch;
@@ -138,22 +143,22 @@ namespace com::saxbophone::zench {
                 }
             }
 
-            std::string operand_count() const {
-                switch (operands.size()) {
-                case 0:
+            std::string operand_arity() const {
+                switch (arity) {
+                case Arity::OP0:
                     return "0OP";
-                case 1:
+                case Arity::OP1:
                     return "1OP";
-                case 2:
+                case Arity::OP2:
                     return "2OP";
-                default:
+                case Arity::VAR:
                     return "VAR";
                 }
             }
 
             std::string opcode_name() const {
                 // just use numbers for now, no name decoding
-                return form_name() + " " + operand_count() + ":" + std::to_string(opcode);
+                return form_name() + " " + operand_arity() + ":" + std::to_string(opcode);
             }
 
             std::string arguments() const {

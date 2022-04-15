@@ -110,6 +110,7 @@ namespace com::saxbophone::zench {
             switch (top_bits) {
             case 0b11:
                 instruction.form = Instruction::Form::VARIABLE;
+                instruction.arity = Instruction::Arity::VAR;
                 // opcode is always bottom 5 bits
                 instruction.opcode = opcode & 0b00011111;
                 break;
@@ -119,7 +120,10 @@ namespace com::saxbophone::zench {
                 Instruction::OperandType type = (Instruction::OperandType)((opcode & 0b00110000) >> 4);
                 // don't push OMITTED types into operand list
                 if (type != Instruction::OperandType::OMITTED) {
+                    instruction.arity = Instruction::Arity::OP1;
                     instruction.operands = {type};
+                } else {
+                    instruction.arity = Instruction::Arity::OP0;
                 }
                 // opcode is always bottom 4 bits
                 instruction.opcode = opcode & 0b00001111;
@@ -127,6 +131,7 @@ namespace com::saxbophone::zench {
             }
             default:
                 instruction.form = Instruction::Form::LONG;
+                instruction.arity = Instruction::Arity::OP2;
                 // long form is always 2-OP --op types are packed into bits 6 and 5
                 instruction.operands = {
                     opcode & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
@@ -143,11 +148,13 @@ namespace com::saxbophone::zench {
             Byte operand_types = this->_memory[this->_pc++];
             // if bit 5 is not set, then it's 2-OP
             if ((opcode & 0b00100000) == 0) {
-                instruction.operands = {
-                    (Instruction::OperandType)(operand_types >> 6),
-                    (Instruction::OperandType)((operand_types >> 4) & 0b11),
-                };
-            } else { // otherwise, read from operand type byte until OMITTED is found
+                // instruction.operands = {
+                //     (Instruction::OperandType)(operand_types >> 6),
+                //     (Instruction::OperandType)((operand_types >> 4) & 0b11),
+                // };
+                instruction.arity = Instruction::Arity::OP2;
+            }
+            // } else { // otherwise, read from operand type byte until OMITTED is found
                 for (int i = 4; i --> 0;) {
                     Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
                     if (type == Instruction::OperandType::OMITTED) {
@@ -155,7 +162,7 @@ namespace com::saxbophone::zench {
                     }
                     instruction.operands.emplace_back(type);
                 }
-            }
+            // }
             // XXX: handle double-var opcodes (two operand type bytes)
             if (instruction.opcode == 12 or instruction.opcode == 26) {
                 throw UnsupportedVersionException();
@@ -190,8 +197,7 @@ namespace com::saxbophone::zench {
                 instruction.branch->offset = branch & 0b00111111;
             } else { // it's a 2-byte branch
                 // use bottom 6 bits of first byte and all 8 of the second
-                Word offset = ((Word)(branch & 0b00111111) << 8) + this->_memory[this->_pc++];
-                instruction.branch->offset = (SWord)offset;
+                instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + this->_memory[this->_pc++];
             }
         }
         // TODO: modulo program counter!
@@ -201,7 +207,7 @@ namespace com::saxbophone::zench {
     bool ZMachine::_is_instruction_store(Instruction instruction) const {
         // NOTE: store opcodes from versions greater than v3 ignored
         // also extended form, but we're not handling those right now
-        if (instruction.form == Instruction::Form::VARIABLE) {
+        if (instruction.arity == Instruction::Arity::VAR) {
             switch (instruction.opcode) {
             case 0x00: case 0x07:
                 return true;
@@ -213,17 +219,17 @@ namespace com::saxbophone::zench {
             throw UnsupportedVersionException();
         }
         // otherwise...
-        switch (instruction.operands.size()) {
-        case 0: // 0OP
+        switch (instruction.arity) {
+        case Instruction::Arity::OP0: // 0OP
             return false; // no 0OP opcodes store in v3 (v5 does have one)
-        case 1: // 1OP
+        case Instruction::Arity::OP1: // 1OP
             switch (instruction.opcode) {
             case 0x01: case 0x02: case 0x03: case 0x04: case 0x0e: case 0x0f:
                 return true;
             default:
                 return false;
             }
-        case 2: // 2OP
+        case Instruction::Arity::OP2: // 2OP
             switch (instruction.opcode) {
             case 0x08: case 0x09: case 0x0f: case 0x10: case 0x11: case 0x12:
             case 0x13: case 0x14: case 0x15: case 0x16: case 0x17: case 0x18:
@@ -239,24 +245,24 @@ namespace com::saxbophone::zench {
     bool ZMachine::_is_instruction_branch(Instruction instruction) const {
         // NOTE: branch opcodes from versions greater than v3 ignored
         // also extended form, but we're not handling those right now
-        if (instruction.form == Instruction::Form::VARIABLE) {
+        if (instruction.arity == Instruction::Arity::VAR) {
             return false; // There are NO branching VAR instructions in v3!
         } else if (instruction.form == Instruction::Form::EXTENDED) {
             // let's trap on extended instructions anyway (should never reach here)
             throw UnsupportedVersionException();
         }
         // otherwise...
-        switch (instruction.operands.size()) {
-        case 0: // 0OP
+        switch (instruction.arity) {
+        case Instruction::Arity::OP0: // 0OP
             switch (instruction.opcode) {
             case 0x05: case 0x06: case 0x0d:
                 return true;
             default:
                 return false;
             }
-        case 1: // 1OP
+        case Instruction::Arity::OP1: // 1OP
             return instruction.opcode < 3; // 0, 1 and 2 all branch
-        case 2: // 2OP
+        case Instruction::Arity::OP2: // 2OP
             return
                 (0 < instruction.opcode and instruction.opcode < 8)
                 or instruction.opcode == 0x0a;
