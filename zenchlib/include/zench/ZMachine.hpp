@@ -72,17 +72,21 @@ namespace com::saxbophone::zench {
 
         struct Instruction {
             using Opcode = Byte; // TODO: maybe convert to enum?
-            enum class OperandType {
-                LARGE_CONSTANT, SMALL_CONSTANT, VARIABLE, OMITTED,
+            enum OperandType : Byte {
+                LARGE_CONSTANT = 0b00,
+                SMALL_CONSTANT = 0b01,
+                VARIABLE = 0b10,
+                OMITTED = 0b11,
             };
 
             struct Operand {
                 OperandType type;
-                Word word;
-                Byte byte;
+                Word word = 0x0000;
+                Byte byte = 0x00;
 
                 Operand() : type(OperandType::OMITTED) {}
                 Operand(Word constant) : type(OperandType::LARGE_CONSTANT), word(constant) {}
+                Operand(OperandType type) : type(type) {}
                 Operand(OperandType type, Byte data) : type(type), byte(data) {}
 
                 std::string to_string() const {
@@ -92,7 +96,7 @@ namespace com::saxbophone::zench {
                     case OperandType::SMALL_CONSTANT:
                         return std::to_string(byte);
                     case OperandType::VARIABLE:
-                        return "@" + std::to_string(word);
+                        return "@" + std::to_string(byte);
                     case OperandType::OMITTED:
                         return "x";
                     }
@@ -120,6 +124,8 @@ namespace com::saxbophone::zench {
                     return "[extended]";
                 case Form::VARIABLE:
                     return "[variable]";
+                default:
+                    return "[unspecified]";
                 }
             }
 
@@ -189,6 +195,9 @@ namespace com::saxbophone::zench {
 
         // NOTE: this method advances the Program Counter (_pc)
         Instruction _decode_instruction();
+
+        bool _is_instruction_store(Instruction instruction) const;
+        bool _is_instruction_branch(Instruction instruction) const;
 
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB

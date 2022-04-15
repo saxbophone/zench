@@ -41,9 +41,8 @@ namespace com::saxbophone::zench {
     }
 
     void ZMachine::execute() {
-        Instruction current = this->_decode_instruction();
         // XXX: debug
-        std::cout << this->_pc << ": " << current.to_string(); // no newline due to cin.get()
+        std::cout << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
         std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 
@@ -96,17 +95,99 @@ namespace com::saxbophone::zench {
     }
 
     ZMachine::Instruction ZMachine::_decode_instruction() {
-        // XXX: dummy made-up instruction for testing purposes
-        return {
-            0x53,
-            Instruction::Form::LONG,
-            {
-                Instruction::Operand(Word{0x73dc}),
-                Instruction::Operand(Instruction::OperandType::VARIABLE, 0x12),
-                Instruction::Operand(),
-            },
-            0x23,
-            -1972,
-        };
+        Byte opcode = this->_memory[this->_pc++]; // first byte of instruction
+        Instruction instruction;
+        // determine the instruction's form first, this is useful mainly for categorising instructions
+        if (opcode == 0xBE) { // extended mode
+            // XXX: extended mode not implemented, we're only targeting version 3 right now
+            // TODO: implement extended mode when running Version 5
+            throw UnsupportedVersionException();
+        } else {
+            // read top two bits to determine instruction form
+            Byte top_bits = opcode >> 6;
+            switch (top_bits) {
+            case 0b11:
+                instruction.form = Instruction::Form::VARIABLE;
+                // opcode is always bottom 5 bits
+                instruction.opcode = opcode & 0b00011111;
+                break;
+            case 0b10: {
+                instruction.form = Instruction::Form::SHORT;
+                // determine argument type and opcode --type is bits 4 and 5
+                Instruction::OperandType type = (Instruction::OperandType)((opcode & 0b00110000) >> 4);
+                // don't push OMITTED types into operand list
+                if (type != Instruction::OperandType::OMITTED) {
+                    instruction.operands = {type};
+                }
+                // opcode is always bottom 4 bits
+                instruction.opcode = opcode & 0b00001111;
+                break;
+            }
+            default:
+                instruction.form = Instruction::Form::LONG;
+                // long form is always 2-OP --op types are packed into bits 6 and 5
+                instruction.operands = {
+                    opcode & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                    opcode & 0b00100000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                };
+                // opcode is always bottom 5 bits
+                instruction.opcode = opcode & 0b00011111;
+                break;
+            }
+        }
+        // handle variable-form operand types
+        if (instruction.form == Instruction::Form::VARIABLE) {
+            // read operand types from the next byte
+            Byte operand_types = this->_memory[this->_pc++];
+            // if bit 5 is not set, then it's 2-OP
+            if ((opcode & 0b00100000) == 0) {
+                instruction.operands = {
+                    (Instruction::OperandType)(operand_types >> 6),
+                    (Instruction::OperandType)((operand_types >> 4) & 0b11),
+                };
+            } else { // otherwise, read from operand type byte until OMITTED is found
+                for (int i = 4; i --> 0;) {
+                    Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
+                    if (type == Instruction::OperandType::OMITTED) {
+                        break;
+                    }
+                    instruction.operands.emplace_back(type);
+                }
+            }
+            // XXX: handle double-var opcodes (two operand type bytes)
+            if (instruction.opcode == 12 or instruction.opcode == 26) {
+                throw UnsupportedVersionException();
+            }
+        }
+        // now we can read in the actual operand values
+        for (auto& operand : instruction.operands) {
+            // this is the only type that pulls a word rather than a byte
+            if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
+                operand.word = this->_load_word(this->_pc);
+                this->_pc += 2;
+            } else {
+                // both SMALL_CONSTANT and VARIABLE are byte-sized
+                operand.byte = this->_memory[this->_pc++];
+            }
+        }
+        // handle store if this instruction stores a result
+        if (this->_is_instruction_store(instruction)) {
+            instruction.store_variable = this->_memory[this->_pc++];
+        }
+        // handle branch if this instruction is branching
+        if (this->_is_instruction_branch(instruction)) {
+            // XXX: Whoops! we don't handle branches (yet)
+            throw UnsupportedVersionException();
+        }
+        // TODO: modulo program counter!
+        return instruction;
+    }
+
+    bool ZMachine::_is_instruction_store(Instruction instruction) const {
+        // XXX: just so we can decode the first instruction correctly
+        return true;
+    }
+    bool ZMachine::_is_instruction_branch(Instruction instruction) const {
+        return false;
     }
 }
