@@ -176,8 +176,14 @@ namespace com::saxbophone::zench {
         }
         // handle branch if this instruction is branching
         if (this->_is_instruction_branch(instruction)) {
-            // XXX: Whoops! we don't handle branches (yet)
-            throw UnsupportedVersionException();
+            // TODO: decode branch address and store in branch_offset
+            Byte branch = this->_memory[this->_pc++];
+            // bit 6 of the first branch byte is set if the offset value is 1 byte only
+            if (not (branch & 0b01000000)) { // it's clear, skip the second byte
+                this->_pc++; // XXX: don't just throw the last byte away
+            }
+            // XXX: set branch_offset to some dummy value anyway to register it
+            instruction.branch_offset = -12345;
         }
         // TODO: modulo program counter!
         return instruction;
