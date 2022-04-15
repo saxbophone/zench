@@ -104,6 +104,7 @@ namespace com::saxbophone::zench {
                         output << std::setw(2) << std::setfill('0') << (Word)byte;
                         return output.str();
                     case OperandType::OMITTED:
+                    default:
                         return "x";
                     }
                 }
