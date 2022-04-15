@@ -96,6 +96,17 @@ namespace com::saxbophone::zench {
     }
 
     ZMachine::Instruction ZMachine::_decode_instruction() {
-        return {};
+        // XXX: dummy made-up instruction for testing purposes
+        return {
+            0x53,
+            Instruction::Form::LONG,
+            {
+                Instruction::Operand(Word{0x73dc}),
+                Instruction::Operand(Instruction::OperandType::VARIABLE, 0x12),
+                Instruction::Operand(),
+            },
+            0x23,
+            -1972,
+        };
     }
 }

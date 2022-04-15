@@ -71,8 +71,98 @@ namespace com::saxbophone::zench {
         using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
 
         struct Instruction {
+            using Opcode = Byte; // TODO: maybe convert to enum?
+            enum class OperandType {
+                LARGE_CONSTANT, SMALL_CONSTANT, VARIABLE, OMITTED,
+            };
+
+            struct Operand {
+                OperandType type;
+                Word word;
+                Byte byte;
+
+                Operand() : type(OperandType::OMITTED) {}
+                Operand(Word constant) : type(OperandType::LARGE_CONSTANT), word(constant) {}
+                Operand(OperandType type, Byte data) : type(type), byte(data) {}
+
+                std::string to_string() const {
+                    switch (type) {
+                    case OperandType::LARGE_CONSTANT:
+                        return std::to_string(word);
+                    case OperandType::SMALL_CONSTANT:
+                        return std::to_string(byte);
+                    case OperandType::VARIABLE:
+                        return "@" + std::to_string(word);
+                    case OperandType::OMITTED:
+                        return "x";
+                    }
+                }
+            };
+
+            enum class Form {
+                LONG, SHORT, EXTENDED, VARIABLE,
+            };
+
+            Opcode opcode;
+            Form form; // XXX: technically, not in the instruction structure table in the spec, but it is mentioned
+            std::vector<Operand> operands;
+            std::optional<Byte> store_variable;
+            std::optional<SWord> branch_offset;
+            // XXX: ignored text-to-print (encoded string) for now
+
+            std::string form_name() const {
+                switch (form) {
+                case Form::LONG:
+                    return "[long]";
+                case Form::SHORT:
+                    return "[short]";
+                case Form::EXTENDED:
+                    return "[extended]";
+                case Form::VARIABLE:
+                    return "[variable]";
+                }
+            }
+
+            std::string operand_count() const {
+                switch (operands.size()) {
+                case 0:
+                    return "0OP";
+                case 1:
+                    return "1OP";
+                case 2:
+                    return "2OP";
+                default:
+                    return "VAR";
+                }
+            }
+
+            std::string opcode_name() const {
+                // just use numbers for now, no name decoding
+                return form_name() + " " + operand_count() + ":" + std::to_string(opcode);
+            }
+
+            std::string arguments() const {
+                if (operands.size() == 0) {
+                    return " ()";
+                }
+                std::string arguments = " (";
+                for (auto arg : operands) {
+                    arguments += " " + arg.to_string();
+                }
+                arguments += " )";
+                return arguments;
+            }
+
+            std::string store() const {
+                return store_variable ? " -> @" + std::to_string(store_variable.value()) : "";
+            }
+
+            std::string branch() const {
+                return branch_offset ? " #" + std::to_string(branch_offset.value()) : "";
+            }
+
             std::string to_string() const {
-                return "Unknown Instruction!";
+                return opcode_name() + arguments() + store() + branch();
             }
         };
 
