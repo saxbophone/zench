@@ -184,8 +184,42 @@ namespace com::saxbophone::zench {
     }
 
     bool ZMachine::_is_instruction_store(Instruction instruction) const {
-        // XXX: just so we can decode the first instruction correctly
-        return true;
+        // NOTE: store opcodes from versions greater than v3 ignored
+        // also extended form, but we're not handling those right now
+        if (instruction.form == Instruction::Form::VARIABLE) {
+            switch (instruction.opcode) {
+            case 0x00: case 0x07:
+                return true;
+            default:
+                return false;
+            }
+        } else if (instruction.form == Instruction::Form::EXTENDED) {
+            // let's trap on extended instructions anyway (should never reach here)
+            throw UnsupportedVersionException();
+        }
+        // otherwise...
+        switch (instruction.operands.size()) {
+        case 0: // 0OP
+            return false; // no 0OP opcodes store in v3 (v5 does have one)
+        case 1: // 1OP
+            switch (instruction.opcode) {
+            case 0x01: case 0x02: case 0x03: case 0x04: case 0x0e: case 0x0f:
+                return true;
+            default:
+                return false;
+            }
+        case 2: // 2OP
+            switch (instruction.opcode) {
+            case 0x08: case 0x09: case 0x0f: case 0x10: case 0x11: case 0x12:
+            case 0x13: case 0x14: case 0x15: case 0x16: case 0x17: case 0x18:
+                return true;
+            default:
+                return false;
+            }
+        default: // XXX: should never reach here
+            throw Exception();
+        }
+        return false;
     }
     bool ZMachine::_is_instruction_branch(Instruction instruction) const {
         return false;
