@@ -104,8 +104,9 @@ namespace com::saxbophone::zench {
                         output << std::setw(2) << std::setfill('0') << (Word)byte;
                         return output.str();
                     case OperandType::OMITTED:
-                    default:
                         return "x";
+                    default:
+                        throw InvalidStoryFileException();
                     }
                 }
             };
@@ -151,7 +152,7 @@ namespace com::saxbophone::zench {
                 case Form::VARIABLE:
                     return "[variable]";
                 default:
-                    return "[unspecified]";
+                    throw InvalidStoryFileException();
                 }
             }
 
@@ -165,6 +166,8 @@ namespace com::saxbophone::zench {
                     return "2OP";
                 case Arity::VAR:
                     return "VAR";
+                default:
+                    throw InvalidStoryFileException();
                 }
             }
 
