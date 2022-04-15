@@ -43,6 +43,7 @@ namespace com::saxbophone::zench {
     void ZMachine::execute() {
         // XXX: debug
         std::cout << std::hex << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
+        // std::cout << std::endl;
         std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 

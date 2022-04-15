@@ -23,10 +23,12 @@
 #include <bitset>    // bitset
 #include <deque>     // deque
 #include <exception> // exception
+#include <iomanip>   // setfill
 #include <istream>   // istream
 #include <optional>  // optional
 #include <span>      // span
 #include <string>    // string
+#include <sstream>   // stringstream
 #include <vector>    // vector
 
 namespace com::saxbophone::zench {
@@ -90,13 +92,17 @@ namespace com::saxbophone::zench {
                 Operand(OperandType type, Byte data) : type(type), byte(data) {}
 
                 std::string to_string() const {
+                    std::stringstream output;
+                    output << std::hex;
                     switch (type) {
                     case OperandType::LARGE_CONSTANT:
-                        return std::to_string(word);
-                    case OperandType::SMALL_CONSTANT:
-                        return std::to_string(byte);
+                        output << std::setfill('0') << std::setw(4) << word;
+                        return output.str();
                     case OperandType::VARIABLE:
-                        return "@" + std::to_string(byte);
+                        output << "@" << std::setw(2);
+                    case OperandType::SMALL_CONSTANT:
+                        output << std::setfill('0') << (Word)byte;
+                        return output.str();
                     case OperandType::OMITTED:
                         return "x";
                     }
@@ -116,7 +122,7 @@ namespace com::saxbophone::zench {
                 SWord offset : 14; // branch offset
 
                 std::string to_string() const {
-                    return (on_true ? "[TRUE] " : "[FALSE] ") + std::to_string(offset);
+                    return (on_true ? " #" : " !#") + std::to_string(offset);
                 }
             };
 
@@ -136,9 +142,9 @@ namespace com::saxbophone::zench {
             std::string form_name() const {
                 switch (form) {
                 case Form::LONG:
-                    return "[long]";
+                    return "[  long  ]";
                 case Form::SHORT:
-                    return "[short]";
+                    return "[  short ]";
                 case Form::EXTENDED:
                     return "[extended]";
                 case Form::VARIABLE:
@@ -163,12 +169,14 @@ namespace com::saxbophone::zench {
 
             std::string opcode_name() const {
                 // just use numbers for now, no name decoding
-                return form_name() + " " + operand_arity() + ":" + std::to_string(opcode);
+                std::stringstream output;
+                output << form_name() << " " << operand_arity() << ":" << std::left << std::setw(2) << std::hex << (Word)opcode;
+                return output.str();
             }
 
             std::string arguments() const {
                 if (operands.size() == 0) {
-                    return " ()";
+                    return "";
                 }
                 std::string arguments = " (";
                 for (auto arg : operands) {
@@ -179,15 +187,23 @@ namespace com::saxbophone::zench {
             }
 
             std::string store_code() const {
-                return store_variable ? " -> @" + std::to_string(store_variable.value()) : "";
+                std::stringstream output;
+                if (store_variable) {
+                    output << std::setfill('0') << std::setw(2) << std::hex << (Word)store_variable.value();
+                }
+                return store_variable ? " -> @" + output.str() : "";
             }
 
             std::string branch_code() const {
-                return branch ? " # " + branch.value().to_string() : "";
+                return branch ? branch.value().to_string() : "";
             }
 
             std::string string_literal() const {
-                return trailing_string_literal ? " Z-Str[" + std::to_string(trailing_string_literal->length) + "] @" + std::to_string(trailing_string_literal->address) : "";
+                std::stringstream output;
+                if (trailing_string_literal) {
+                    output << std::setfill('0') << std::setw(6) << std::hex << (Address)trailing_string_literal->address;
+                }
+                return trailing_string_literal ? " Z-Str[" + std::to_string(trailing_string_literal->length) + "] @" + output.str() : "";
             }
 
             std::string to_string() const {
