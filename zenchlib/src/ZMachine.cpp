@@ -42,7 +42,7 @@ namespace com::saxbophone::zench {
 
     void ZMachine::execute() {
         // XXX: debug
-        std::cout << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
+        std::cout << std::hex << this->_pc << ": " << this->_decode_instruction().to_string(); // no newline due to cin.get()
         std::cin.get(); // XXX: wait for newline to prevent instruction decoding demo from running too fast
     }
 
@@ -222,6 +222,32 @@ namespace com::saxbophone::zench {
         return false;
     }
     bool ZMachine::_is_instruction_branch(Instruction instruction) const {
+        // NOTE: branch opcodes from versions greater than v3 ignored
+        // also extended form, but we're not handling those right now
+        if (instruction.form == Instruction::Form::VARIABLE) {
+            return false; // There are NO branching VAR instructions in v3!
+        } else if (instruction.form == Instruction::Form::EXTENDED) {
+            // let's trap on extended instructions anyway (should never reach here)
+            throw UnsupportedVersionException();
+        }
+        // otherwise...
+        switch (instruction.operands.size()) {
+        case 0: // 0OP
+            switch (instruction.opcode) {
+            case 0x05: case 0x06: case 0x0d:
+                return true;
+            default:
+                return false;
+            }
+        case 1: // 1OP
+            return instruction.opcode < 3; // 0, 1 and 2 all branch
+        case 2: // 2OP
+            return
+                (0 < instruction.opcode and instruction.opcode < 8)
+                or instruction.opcode == 0x0a;
+        default: // XXX: should never reach here
+            throw Exception();
+        }
         return false;
     }
 }
