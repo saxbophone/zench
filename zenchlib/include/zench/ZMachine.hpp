@@ -99,9 +99,9 @@ namespace com::saxbophone::zench {
                         output << std::setfill('0') << std::setw(4) << word;
                         return output.str();
                     case OperandType::VARIABLE:
-                        output << "@" << std::setw(2);
+                        output << "@";
                     case OperandType::SMALL_CONSTANT:
-                        output << std::setfill('0') << (Word)byte;
+                        output << std::setw(2) << std::setfill('0') << (Word)byte;
                         return output.str();
                     case OperandType::OMITTED:
                         return "x";
@@ -201,7 +201,7 @@ namespace com::saxbophone::zench {
             std::string string_literal() const {
                 std::stringstream output;
                 if (trailing_string_literal) {
-                    output << std::setfill('0') << std::setw(6) << std::hex << (Address)trailing_string_literal->address;
+                    output << std::hex << (Address)trailing_string_literal->address;
                 }
                 return trailing_string_literal ? " Z-Str[" + std::to_string(trailing_string_literal->length) + "] @" + output.str() : "";
             }
