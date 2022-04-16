@@ -287,9 +287,73 @@ namespace com::saxbophone::zench {
             return address.str();
         }
 
+        std::string get_2op_name() const {
+            switch (opcode) {
+            case 0x01: return "je";
+            case 0x02: return "jl";
+            case 0x03: return "jg";
+            case 0x04: return "dec_chk";
+            case 0x05: return "inc_chk";
+            case 0x06: return "jin";
+            case 0x07: return "test";
+            case 0x08: return "or";
+            case 0x09: return "and";
+            case 0x0a: return "test_attr";
+            case 0x0b: return "set_attr";
+            case 0x0c: return "clear_attr";
+            case 0x0d: return "store";
+            case 0x0e: return "insert_obj";
+            case 0x0f: return "loadw";
+            case 0x10: return "loadb";
+            case 0x11: return "get_prop";
+            case 0x12: return "get_prop_addr";
+            case 0x13: return "get_next_prop";
+            case 0x14: return "add";
+            case 0x15: return "sub";
+            case 0x16: return "mul";
+            case 0x17: return "div";
+            case 0x18: return "mod";
+            default: return "mnemonic?";
+            }
+        }
+
+        std::string get_1op_name() const {
+            switch (opcode) {
+            default: return "mnemonic?";
+            }
+        }
+
+        std::string get_0op_name() const {
+            switch (opcode) {
+            default: return "mnemonic?";
+            }
+        }
+
+        std::string get_var_name() const {
+            switch (opcode) {
+            default: return "mnemonic?";
+            }
+        }
+
+        std::string get_ext_name() const {
+            return "EXT";
+        }
+
         std::string mnemonic_string() const {
-            // XXX: mnemonic decoding not yet implemented!
-            return "@mnemonic?";
+            switch (category) {
+            case Category::_0OP:
+                return get_0op_name();
+            case Category::_1OP:
+                return get_1op_name();
+            case Category::_2OP:
+                return get_2op_name();
+            case Category::VAR:
+                return get_var_name();
+            case Category::EXT:
+                return get_ext_name();
+            default:
+                return "op-count?";
+            }
         }
 
         std::string arguments_string() const {
@@ -390,7 +454,7 @@ namespace com::saxbophone::zench {
 
         std::string to_string() const {
             return
-                address_string() + ": " + mnemonic_string() +
+                address_string() + ": @" + mnemonic_string() +
                 arguments_string() + literal_string() +
                 store_string() + branch_string() + ";\n\t" + metadata() + "\n\t" + bytecode_string();
         }
