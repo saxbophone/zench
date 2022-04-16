@@ -8,6 +8,7 @@
 #include <iostream> // XXX: debug
 #include <iterator>
 
+#include <zench/zench.hpp>
 #include <zench/ZMachine.hpp>
 
 #include "Instruction.hpp"

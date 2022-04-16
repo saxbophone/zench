@@ -44,9 +44,7 @@ namespace com::saxbophone::zench {
             Byte byte = 0x00;
 
             Operand() : type(OperandType::OMITTED) {}
-            Operand(Word constant) : type(OperandType::LARGE_CONSTANT), word(constant) {}
             Operand(OperandType type) : type(type) {}
-            Operand(OperandType type, Byte data) : type(type), byte(data) {}
 
             std::string to_string() const {
                 std::stringstream output;
@@ -63,7 +61,7 @@ namespace com::saxbophone::zench {
                 case OperandType::OMITTED:
                     return "x";
                 default:
-                    throw "InvalidStoryFileException()";
+                    throw InvalidStoryFileException();
                 }
             }
         };
@@ -110,7 +108,7 @@ namespace com::saxbophone::zench {
                 }
             } else if (instruction.form == Instruction::Form::EXTENDED) {
                 // let's trap on extended instructions anyway (should never reach here)
-                throw "UnsupportedVersionException()";
+                throw UnsupportedVersionException();
             }
             // otherwise...
             switch (instruction.arity) {
@@ -132,7 +130,7 @@ namespace com::saxbophone::zench {
                     return false;
                 }
             default: // XXX: should never reach here
-                throw "Exception()";
+                throw Exception();
             }
             return false;
         }
@@ -144,7 +142,7 @@ namespace com::saxbophone::zench {
                 return false; // There are NO branching VAR instructions in v3!
             } else if (instruction.form == Instruction::Form::EXTENDED) {
                 // let's trap on extended instructions anyway (should never reach here)
-                throw "UnsupportedVersionException()";
+                throw UnsupportedVersionException();
             }
             // otherwise...
             switch (instruction.arity) {
@@ -162,7 +160,7 @@ namespace com::saxbophone::zench {
                     (0 < instruction.opcode and instruction.opcode < 8)
                     or instruction.opcode == 0x0a;
             default: // XXX: should never reach here
-                throw "Exception()";
+                throw Exception();
             }
             return false;
         }
@@ -174,7 +172,7 @@ namespace com::saxbophone::zench {
             if (opcode == 0xBE) { // extended mode
                 // XXX: extended mode not implemented, we're only targeting version 3 right now
                 // TODO: implement extended mode when running Version 5
-                throw "UnsupportedVersionException()";
+                throw UnsupportedVersionException();
             } else {
                 // read top two bits to determine instruction form
                 Byte top_bits = opcode >> 6;
@@ -217,7 +215,7 @@ namespace com::saxbophone::zench {
             if (instruction.form == Instruction::Form::VARIABLE) {
                 // XXX: handle double-var opcodes (two operand type bytes)
                 if (instruction.opcode == 12 or instruction.opcode == 26) {
-                    throw "UnsupportedVersionException()";
+                    throw UnsupportedVersionException();
                 }
                 // read operand types from the next byte
                 Byte operand_types = memory_view[pc++];
@@ -297,7 +295,7 @@ namespace com::saxbophone::zench {
             case Form::VARIABLE:
                 return "[variable]";
             default:
-                throw "InvalidStoryFileException()";
+                throw InvalidStoryFileException();
             }
         }
 
@@ -312,7 +310,7 @@ namespace com::saxbophone::zench {
             case Arity::VAR:
                 return "VAR";
             default:
-                throw "InvalidStoryFileException()";
+                throw InvalidStoryFileException();
             }
         }
 

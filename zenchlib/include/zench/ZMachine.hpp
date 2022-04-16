@@ -22,13 +22,9 @@
 
 #include <bitset>    // bitset
 #include <deque>     // deque
-#include <exception> // exception
-#include <iomanip>   // setfill
 #include <istream>   // istream
 #include <optional>  // optional
 #include <span>      // span
-#include <string>    // string
-#include <sstream>   // stringstream
 #include <vector>    // vector
 
 #include <zench/zench.hpp>
@@ -36,26 +32,6 @@
 namespace com::saxbophone::zench {
     class ZMachine {
     public:
-        // base class for all of zench's exceptions
-        class Exception : public std::exception {};
-        class CantReadStoryFileException : public Exception {
-            const char* what() const noexcept {
-                return "Can't read story file";
-            }
-        };
-        class UnsupportedVersionException : public Exception {
-            // TODO: rewrite this out-of-header to report supported versions
-            // and actual version given
-            const char* what() const noexcept {
-                return "Story file version not supported";
-            }
-        };
-        class InvalidStoryFileException : public Exception {
-            const char* what() const noexcept {
-                return "Invalid story file";
-            }
-        };
-
         // NOTE: it is permitted for story_file to be closed for further reading after this constructor returns
         ZMachine(std::istream& story_file);
 
