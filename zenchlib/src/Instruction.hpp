@@ -340,6 +340,20 @@ namespace com::saxbophone::zench {
 
         std::string get_0op_name() const {
             switch (opcode) {
+            case 0x0: return "rtrue";
+            case 0x1: return "rfalse";
+            case 0x2: return "print";
+            case 0x3: return "print_ret";
+            case 0x4: return "nop";
+            case 0x5: return "save";
+            case 0x6: return "restore";
+            case 0x7: return "restart";
+            case 0x8: return "ret_popped";
+            case 0x9: return "pop";
+            case 0xa: return "quit";
+            case 0xb: return "new_line";
+            case 0xc: return "show_status";
+            case 0xd: return "verify";
             default: return "mnemonic?";
             }
         }
