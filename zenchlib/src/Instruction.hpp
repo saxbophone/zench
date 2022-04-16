@@ -293,7 +293,27 @@ namespace com::saxbophone::zench {
         }
 
         std::string arguments_string() const {
-            return "arg0,arg1,arg2";
+            std::stringstream arguments;
+            if (operands.size() > 0) {
+                arguments << " ";
+            }
+            for (std::size_t i = 0; i < operands.size(); i++) {
+                if (operands[i].type != OperandType::VARIABLE) {
+                    arguments << "#";
+                }
+                arguments << std::hex;
+                if (operands[i].type == OperandType::LARGE_CONSTANT) {
+                    arguments << std::setfill('0') << std::setw(4);
+                    arguments << operands[i].word;
+                } else {
+                    arguments << std::setfill('0') << std::setw(2);
+                    arguments << (Word)operands[i].byte;
+                }
+                if (i < operands.size() - 1) {
+                    arguments << ",";
+                }
+            }
+            return arguments.str();
         }
 
         std::string literal_string() const {
@@ -315,11 +335,50 @@ namespace com::saxbophone::zench {
             return branch ? jump.str() : "";
         }
 
+        std::string metadata() const {
+            std::stringstream data;
+            switch (form) {
+            case Form::LONG:
+                data << "long";
+                break;
+            case Form::SHORT:
+                data << "short";
+                break;
+            case Form::EXTENDED:
+                data << "extended";
+                break;
+            case Form::VARIABLE:
+                data << "variable";
+                break;
+            default:
+                data << "????";
+            }
+            data << " form; count ";
+            switch (category) {
+            case Category::_0OP:
+                data << "0OP";
+                break;
+            case Category::_1OP:
+                data << "1OP";
+                break;
+            case Category::_2OP:
+                data << "2OP";
+                break;
+            case Category::VAR:
+                data << "VAR";
+                break;
+            case Category::EXT:
+                data << "EXT";
+                break;
+            default:
+                data << "????";
+            }
+            data << "; opcode number " << std::hex << (Word)opcode << ";";
+            return data.str();
+        }
+
         std::string bytecode_string() const {
             std::stringstream bytes;
-            if (this->bytecode.size() > 10) {
-                bytes << "\n";
-            }
             for (std::size_t i = 0; i < this->bytecode.size(); i++) {
                 if (i != 0) {
                     bytes << " ";
@@ -331,9 +390,9 @@ namespace com::saxbophone::zench {
 
         std::string to_string() const {
             return
-                address_string() + ": " + mnemonic_string() + " " +
+                address_string() + ": " + mnemonic_string() +
                 arguments_string() + literal_string() +
-                store_string() + branch_string() + "; " + bytecode_string();
+                store_string() + branch_string() + ";\n\t" + metadata() + "\n\t" + bytecode_string();
         }
     };
 }
