@@ -72,6 +72,9 @@ namespace com::saxbophone::zench {
         std::optional<Byte> store_variable;
         std::optional<Branch> branch;
         std::optional<StringLiteral> trailing_string_literal;
+        // strictly metadata fields for assembly output:
+        Address location; // address of the first byte of this instruction
+        std::vector<Byte> bytecode; // the raw bytes that encode this instruction
 
         static bool _is_instruction_store(Instruction instruction) {
             // NOTE: store opcodes from versions greater than v3 ignored
@@ -144,21 +147,24 @@ namespace com::saxbophone::zench {
 
         // NOTE: modifies pc in-place!
         static Instruction decode(Address& pc, std::span<const Byte> memory_view) {
-            Byte opcode = memory_view[pc++]; // first byte of instruction
             Instruction instruction;
+            // store instruction origin address
+            instruction.location = pc;
+            Byte first = memory_view[pc++]; // first byte of instruction
+            instruction.bytecode.push_back(first);
             // determine the instruction's form first, this is useful mainly for categorising instructions
-            if (opcode == 0xBE) { // extended mode
+            if (first == 0xBE) { // extended mode
                 // XXX: extended mode not implemented, we're only targeting version 3 right now
                 // TODO: implement extended mode when running Version 5
                 throw UnsupportedVersionException();
             } else {
                 // read top two bits to determine instruction form
-                Byte top_bits = opcode >> 6;
+                Byte top_bits = first >> 6;
                 switch (top_bits) {
                 case 0b11:
                     instruction.form = Instruction::Form::VARIABLE;
                     // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
-                    if ((opcode & 0b00100000) == 0) {
+                    if ((first & 0b00100000) == 0) {
                         // in other words, a 2OP-category opcode assembled in variable form
                         instruction.category = Instruction::Category::_2OP;
                     } else {
@@ -166,12 +172,12 @@ namespace com::saxbophone::zench {
                         instruction.category = Instruction::Category::VAR;
                     }
                     // opcode is always bottom 5 bits
-                    instruction.opcode = opcode & 0b00011111;
+                    instruction.opcode = first & 0b00011111;
                     break;
                 case 0b10: {
                     instruction.form = Instruction::Form::SHORT;
                     // determine argument type and opcode --type is bits 4 and 5
-                    Instruction::OperandType type = (Instruction::OperandType)((opcode & 0b00110000) >> 4);
+                    Instruction::OperandType type = (Instruction::OperandType)((first & 0b00110000) >> 4);
                     // don't push OMITTED types into operand list
                     if (type != Instruction::OperandType::OMITTED) {
                         instruction.category = Instruction::Category::_1OP;
@@ -180,7 +186,7 @@ namespace com::saxbophone::zench {
                         instruction.category = Instruction::Category::_0OP;
                     }
                     // opcode is always bottom 4 bits
-                    instruction.opcode = opcode & 0b00001111;
+                    instruction.opcode = first & 0b00001111;
                     break;
                 }
                 default:
@@ -188,11 +194,11 @@ namespace com::saxbophone::zench {
                     instruction.category = Instruction::Category::_2OP;
                     // long form is always 2-OP --op types are packed into bits 6 and 5
                     instruction.operands = {
-                        opcode & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
-                        opcode & 0b00100000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                        first & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                        first & 0b00100000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
                     };
                     // opcode is always bottom 5 bits
-                    instruction.opcode = opcode & 0b00011111;
+                    instruction.opcode = first & 0b00011111;
                     break;
                 }
             }
@@ -204,6 +210,7 @@ namespace com::saxbophone::zench {
                 }
                 // read operand types from the next byte
                 Byte operand_types = memory_view[pc++];
+                instruction.bytecode.push_back(operand_types);
                 for (int i = 4; i --> 0;) {
                     Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
                     if (type == Instruction::OperandType::OMITTED) {
@@ -218,20 +225,25 @@ namespace com::saxbophone::zench {
                 if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
                     // would use ZMachine.load_word() but it's not accessible
                     operand.word = ((Word)memory_view[pc] << 8) + memory_view[pc + 1];
+                    instruction.bytecode.push_back(memory_view[pc]);
+                    instruction.bytecode.push_back(memory_view[pc + 1]);
                     pc += 2;
                 } else {
                     // both SMALL_CONSTANT and VARIABLE are byte-sized
+                    instruction.bytecode.push_back(memory_view[pc]);
                     operand.byte = memory_view[pc++];
                 }
             }
             // handle store if this instruction stores a result
             if (Instruction::_is_instruction_store(instruction)) {
+                instruction.bytecode.push_back(memory_view[pc]);
                 instruction.store_variable = memory_view[pc++];
             }
             // handle branch if this instruction is branching
             if (Instruction::_is_instruction_branch(instruction)) {
                 // decode branch address and store in branch_offset
                 Byte branch = memory_view[pc++];
+                instruction.bytecode.push_back(branch);
                 instruction.branch = Instruction::Branch{
                     .on_true = (branch & 0b10000000) != 0,
                     .offset = 0,
@@ -242,6 +254,7 @@ namespace com::saxbophone::zench {
                     instruction.branch->offset = branch & 0b00111111;
                 } else { // it's a 2-byte branch
                     // use bottom 6 bits of first byte and all 8 of the second
+                    instruction.bytecode.push_back(memory_view[pc]);
                     instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + memory_view[pc++];
                 }
             }
@@ -254,9 +267,13 @@ namespace com::saxbophone::zench {
                     };
                     // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
                     while ((memory_view[pc] & 0b10000000) == 0) {
+                        instruction.bytecode.push_back(memory_view[pc]);
+                        instruction.bytecode.push_back(memory_view[pc + 1]);
                         pc += 2;
                         instruction.trailing_string_literal->length += 2;
                     }
+                    instruction.bytecode.push_back(memory_view[pc]);
+                    instruction.bytecode.push_back(memory_view[pc + 1]);
                     pc += 2;
                     instruction.trailing_string_literal->length += 2;
                 }
@@ -264,8 +281,27 @@ namespace com::saxbophone::zench {
             return instruction;
         }
 
+        std::string address_string() const {
+            std::stringstream address;
+            address << std::hex << std::setw(6) << this->location;
+            return address.str();
+        }
+
+        std::string bytecode_string() const {
+            std::stringstream bytes;
+            bytes << "[";
+            for (std::size_t i = 0; i < this->bytecode.size(); i++) {
+                if (i != 0) {
+                    bytes << " ";
+                }
+                bytes << std::hex << std::setfill('0') << std::setw(2) << (Word)this->bytecode[i];
+            }
+            bytes << "]";
+            return bytes.str();
+        }
+
         std::string to_string() const {
-            return "<instruction>";
+            return this->address_string() + ": " + this->bytecode_string();
         }
     };
 }
