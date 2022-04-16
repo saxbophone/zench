@@ -45,42 +45,19 @@ namespace com::saxbophone::zench {
 
             Operand() : type(OperandType::OMITTED) {}
             Operand(OperandType type) : type(type) {}
-
-            std::string to_string() const {
-                std::stringstream output;
-                output << std::hex;
-                switch (type) {
-                case OperandType::LARGE_CONSTANT:
-                    output << std::setfill('0') << std::setw(4) << word;
-                    return output.str();
-                case OperandType::VARIABLE:
-                    output << "@";
-                case OperandType::SMALL_CONSTANT:
-                    output << std::setw(2) << std::setfill('0') << (Word)byte;
-                    return output.str();
-                case OperandType::OMITTED:
-                    return "x";
-                default:
-                    throw InvalidStoryFileException();
-                }
-            }
         };
 
         enum class Form {
             LONG, SHORT, EXTENDED, VARIABLE,
         };
 
-        enum class Arity {
-            OP0, OP1, OP2, VAR,
+        enum class Category {
+            _0OP, _1OP, _2OP, VAR, EXT,
         };
 
         struct Branch {
             bool on_true; // whether branch is on true (otherwise, on false)
             SWord offset : 14; // branch offset
-
-            std::string to_string() const {
-                return (on_true ? " #" : " !#") + std::to_string(offset);
-            }
         };
 
         struct StringLiteral {
@@ -89,8 +66,8 @@ namespace com::saxbophone::zench {
         };
 
         Opcode opcode;
-        Form form; // XXX: technically, not in the instruction structure table in the spec, but it is mentioned
-        Arity arity; // can't actually rely upon operands.size() as some 2-op opcodes have more than 2 args!
+        Form form; // form specifies the structure of an instruction
+        Category category; // categories are rather misleadingly named after their operand counts, a trait that doesn't quite hold true
         std::vector<Operand> operands;
         std::optional<Byte> store_variable;
         std::optional<Branch> branch;
@@ -99,7 +76,7 @@ namespace com::saxbophone::zench {
         static bool _is_instruction_store(Instruction instruction) {
             // NOTE: store opcodes from versions greater than v3 ignored
             // also extended form, but we're not handling those right now
-            if (instruction.arity == Instruction::Arity::VAR) {
+            if (instruction.category == Instruction::Category::VAR) {
                 switch (instruction.opcode) {
                 case 0x00: case 0x07:
                     return true;
@@ -111,17 +88,17 @@ namespace com::saxbophone::zench {
                 throw UnsupportedVersionException();
             }
             // otherwise...
-            switch (instruction.arity) {
-            case Instruction::Arity::OP0: // 0OP
+            switch (instruction.category) {
+            case Instruction::Category::_0OP: // 0OP
                 return false; // no 0OP opcodes store in v3 (v5 does have one)
-            case Instruction::Arity::OP1: // 1OP
+            case Instruction::Category::_1OP: // 1OP
                 switch (instruction.opcode) {
                 case 0x01: case 0x02: case 0x03: case 0x04: case 0x0e: case 0x0f:
                     return true;
                 default:
                     return false;
                 }
-            case Instruction::Arity::OP2: // 2OP
+            case Instruction::Category::_2OP: // 2OP
                 switch (instruction.opcode) {
                 case 0x08: case 0x09: case 0x0f: case 0x10: case 0x11: case 0x12:
                 case 0x13: case 0x14: case 0x15: case 0x16: case 0x17: case 0x18:
@@ -138,24 +115,24 @@ namespace com::saxbophone::zench {
         static bool _is_instruction_branch(Instruction instruction) {
             // NOTE: branch opcodes from versions greater than v3 ignored
             // also extended form, but we're not handling those right now
-            if (instruction.arity == Instruction::Arity::VAR) {
+            if (instruction.category == Instruction::Category::VAR) {
                 return false; // There are NO branching VAR instructions in v3!
             } else if (instruction.form == Instruction::Form::EXTENDED) {
                 // let's trap on extended instructions anyway (should never reach here)
                 throw UnsupportedVersionException();
             }
             // otherwise...
-            switch (instruction.arity) {
-            case Instruction::Arity::OP0: // 0OP
+            switch (instruction.category) {
+            case Instruction::Category::_0OP: // 0OP
                 switch (instruction.opcode) {
                 case 0x05: case 0x06: case 0x0d:
                     return true;
                 default:
                     return false;
                 }
-            case Instruction::Arity::OP1: // 1OP
+            case Instruction::Category::_1OP: // 1OP
                 return instruction.opcode < 3; // 0, 1 and 2 all branch
-            case Instruction::Arity::OP2: // 2OP
+            case Instruction::Category::_2OP: // 2OP
                 return
                     (0 < instruction.opcode and instruction.opcode < 8)
                     or instruction.opcode == 0x0a;
@@ -180,7 +157,14 @@ namespace com::saxbophone::zench {
                 switch (top_bits) {
                 case 0b11:
                     instruction.form = Instruction::Form::VARIABLE;
-                    instruction.arity = Instruction::Arity::VAR;
+                    // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
+                    if ((opcode & 0b00100000) == 0) {
+                        // in other words, a 2OP-category opcode assembled in variable form
+                        instruction.category = Instruction::Category::_2OP;
+                    } else {
+                        // otherwise, it is in fact a *true* VAR opcode assembled in variable form!
+                        instruction.category = Instruction::Category::VAR;
+                    }
                     // opcode is always bottom 5 bits
                     instruction.opcode = opcode & 0b00011111;
                     break;
@@ -190,10 +174,10 @@ namespace com::saxbophone::zench {
                     Instruction::OperandType type = (Instruction::OperandType)((opcode & 0b00110000) >> 4);
                     // don't push OMITTED types into operand list
                     if (type != Instruction::OperandType::OMITTED) {
-                        instruction.arity = Instruction::Arity::OP1;
+                        instruction.category = Instruction::Category::_1OP;
                         instruction.operands = {type};
                     } else {
-                        instruction.arity = Instruction::Arity::OP0;
+                        instruction.category = Instruction::Category::_0OP;
                     }
                     // opcode is always bottom 4 bits
                     instruction.opcode = opcode & 0b00001111;
@@ -201,7 +185,7 @@ namespace com::saxbophone::zench {
                 }
                 default:
                     instruction.form = Instruction::Form::LONG;
-                    instruction.arity = Instruction::Arity::OP2;
+                    instruction.category = Instruction::Category::_2OP;
                     // long form is always 2-OP --op types are packed into bits 6 and 5
                     instruction.operands = {
                         opcode & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
@@ -220,10 +204,6 @@ namespace com::saxbophone::zench {
                 }
                 // read operand types from the next byte
                 Byte operand_types = memory_view[pc++];
-                // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
-                if ((opcode & 0b00100000) == 0) {
-                    instruction.arity = Instruction::Arity::OP2;
-                }
                 for (int i = 4; i --> 0;) {
                     Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
                     if (type == Instruction::OperandType::OMITTED) {
@@ -266,7 +246,7 @@ namespace com::saxbophone::zench {
                 }
             }
             // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
-            if (instruction.arity == Instruction::Arity::OP0) {
+            if (instruction.category == Instruction::Category::_0OP) {
                 if (instruction.opcode == 2 or instruction.opcode == 3) {
                     instruction.trailing_string_literal = {
                         .address = pc,
@@ -281,81 +261,11 @@ namespace com::saxbophone::zench {
                     instruction.trailing_string_literal->length += 2;
                 }
             }
-            // TODO: modulo program counter!
             return instruction;
         }
 
-        std::string form_name() const {
-            switch (form) {
-            case Form::LONG:
-                return "[  long  ]";
-            case Form::SHORT:
-                return "[  short ]";
-            case Form::EXTENDED:
-                return "[extended]";
-            case Form::VARIABLE:
-                return "[variable]";
-            default:
-                throw InvalidStoryFileException();
-            }
-        }
-
-        std::string operand_arity() const {
-            switch (arity) {
-            case Arity::OP0:
-                return "0OP";
-            case Arity::OP1:
-                return "1OP";
-            case Arity::OP2:
-                return "2OP";
-            case Arity::VAR:
-                return "VAR";
-            default:
-                throw InvalidStoryFileException();
-            }
-        }
-
-        std::string opcode_name() const {
-            // just use numbers for now, no name decoding
-            std::stringstream output;
-            output << form_name() << " " << operand_arity() << ":" << std::left << std::setw(2) << std::hex << (Word)opcode;
-            return output.str();
-        }
-
-        std::string arguments() const {
-            if (operands.size() == 0) {
-                return "";
-            }
-            std::string arguments = " (";
-            for (auto arg : operands) {
-                arguments += " " + arg.to_string();
-            }
-            arguments += " )";
-            return arguments;
-        }
-
-        std::string store_code() const {
-            std::stringstream output;
-            if (store_variable) {
-                output << std::setfill('0') << std::setw(2) << std::hex << (Word)store_variable.value();
-            }
-            return store_variable ? " -> @" + output.str() : "";
-        }
-
-        std::string branch_code() const {
-            return branch ? branch.value().to_string() : "";
-        }
-
-        std::string string_literal() const {
-            std::stringstream output;
-            if (trailing_string_literal) {
-                output << std::hex << (Address)trailing_string_literal->address;
-            }
-            return trailing_string_literal ? " Z-Str[" + std::to_string(trailing_string_literal->length) + "] @" + output.str() : "";
-        }
-
         std::string to_string() const {
-            return opcode_name() + arguments() + store_code() + branch_code() + string_literal();
+            return "<instruction>";
         }
     };
 }
