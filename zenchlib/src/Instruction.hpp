@@ -443,6 +443,17 @@ namespace com::saxbophone::zench {
             return branch ? jump.str() : "";
         }
 
+        std::string bytecode_string() const {
+            std::stringstream bytes;
+            for (std::size_t i = 0; i < this->bytecode.size(); i++) {
+                if (i != 0) {
+                    bytes << " ";
+                }
+                bytes << std::hex << std::setfill('0') << std::setw(2) << (Word)this->bytecode[i];
+            }
+            return bytes.str();
+        }
+
         std::string metadata() const {
             std::stringstream data;
             switch (form) {
@@ -461,46 +472,15 @@ namespace com::saxbophone::zench {
             default:
                 data << "????";
             }
-            data << " form; count ";
-            switch (category) {
-            case Category::_0OP:
-                data << "0OP";
-                break;
-            case Category::_1OP:
-                data << "1OP";
-                break;
-            case Category::_2OP:
-                data << "2OP";
-                break;
-            case Category::VAR:
-                data << "VAR";
-                break;
-            case Category::EXT:
-                data << "EXT";
-                break;
-            default:
-                data << "????";
-            }
-            data << "; opcode number " << std::hex << (Word)opcode << ";";
+            data << " " << bytecode_string();
             return data.str();
-        }
-
-        std::string bytecode_string() const {
-            std::stringstream bytes;
-            for (std::size_t i = 0; i < this->bytecode.size(); i++) {
-                if (i != 0) {
-                    bytes << " ";
-                }
-                bytes << std::hex << std::setfill('0') << std::setw(2) << (Word)this->bytecode[i];
-            }
-            return bytes.str();
         }
 
         std::string to_string() const {
             return
                 address_string() + ": @" + mnemonic_string() +
                 arguments_string() + literal_string() +
-                store_string() + branch_string() + ";\n\t" + metadata() + "\n\t" + bytecode_string();
+                store_string() + branch_string() + "; " + metadata();
         }
     };
 }
