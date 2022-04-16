@@ -360,6 +360,21 @@ namespace com::saxbophone::zench {
 
         std::string get_var_name() const {
             switch (opcode) {
+            case 0x00: return "call";
+            case 0x01: return "storew";
+            case 0x02: return "storeb";
+            case 0x03: return "put_prop";
+            case 0x04: return "sread";
+            case 0x05: return "print_char";
+            case 0x06: return "print_num";
+            case 0x07: return "random";
+            case 0x08: return "push";
+            case 0x09: return "pull";
+            case 0x0a: return "split_window";
+            case 0x0b: return "set_window";
+            case 0x13: return "output_stream";
+            case 0x14: return "input_stream";
+            case 0x15: return "sound_effect"; // XXX: not sure if this is in v3
             default: return "mnemonic?";
             }
         }
