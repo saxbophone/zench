@@ -301,11 +301,18 @@ namespace com::saxbophone::zench {
         }
 
         std::string store_string() const {
-            return store_variable ? " -> @??" : "";
+            if (not store_variable) { return ""; }
+            std::stringstream store;
+            store << " -> " << std::hex << std::setfill('0') << std::setw(2) << (Word)*store_variable;
+            return store.str();
         }
 
         std::string branch_string() const {
-            return branch ? " #!????" : "";
+            if (not branch) { return ""; }
+            std::stringstream jump;
+            jump << " ?" << (branch->on_true ? " " : "! ");
+            jump << branch->offset;
+            return branch ? jump.str() : "";
         }
 
         std::string bytecode_string() const {
