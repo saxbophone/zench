@@ -287,21 +287,46 @@ namespace com::saxbophone::zench {
             return address.str();
         }
 
+        std::string mnemonic_string() const {
+            // XXX: mnemonic decoding not yet implemented!
+            return "@mnemonic?";
+        }
+
+        std::string arguments_string() const {
+            return "arg0,arg1,arg2";
+        }
+
+        std::string literal_string() const {
+            return trailing_string_literal ? " {Z-str}" : "";
+        }
+
+        std::string store_string() const {
+            return store_variable ? " -> @??" : "";
+        }
+
+        std::string branch_string() const {
+            return branch ? " #!????" : "";
+        }
+
         std::string bytecode_string() const {
             std::stringstream bytes;
-            bytes << "[";
+            if (this->bytecode.size() > 10) {
+                bytes << "\n";
+            }
             for (std::size_t i = 0; i < this->bytecode.size(); i++) {
                 if (i != 0) {
                     bytes << " ";
                 }
                 bytes << std::hex << std::setfill('0') << std::setw(2) << (Word)this->bytecode[i];
             }
-            bytes << "]";
             return bytes.str();
         }
 
         std::string to_string() const {
-            return this->address_string() + ": " + this->bytecode_string();
+            return
+                address_string() + ": " + mnemonic_string() + " " +
+                arguments_string() + literal_string() +
+                store_string() + branch_string() + "; " + bytecode_string();
         }
     };
 }
