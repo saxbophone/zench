@@ -319,6 +319,21 @@ namespace com::saxbophone::zench {
 
         std::string get_1op_name() const {
             switch (opcode) {
+            case 0x0: return "jz";
+            case 0x1: return "get_sibling";
+            case 0x2: return "get_child";
+            case 0x3: return "get_parent";
+            case 0x4: return "get_prop_len";
+            case 0x5: return "inc";
+            case 0x6: return "dec";
+            case 0x7: return "print_addr";
+            case 0x9: return "remove_obj";
+            case 0xa: return "print_obj";
+            case 0xb: return "ret";
+            case 0xc: return "jump";
+            case 0xd: return "print_paddr";
+            case 0xe: return "load";
+            case 0xf: return "not";
             default: return "mnemonic?";
             }
         }
