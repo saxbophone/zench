@@ -165,6 +165,7 @@ namespace com::saxbophone::zench {
             return false;
         }
 
+        // NOTE: modifies pc in-place!
         static Instruction decode(Address& pc, std::span<const Byte> memory_view) {
             Byte opcode = memory_view[pc++]; // first byte of instruction
             Instruction instruction;

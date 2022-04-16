@@ -99,7 +99,7 @@ namespace com::saxbophone::zench {
     void ZMachine::_print_next_instruction() {
         std::cout << std::hex << this->_pc << " ";
         std::span<const Byte> memory_view{this->_memory}; // read only accessor for memory
-        Instruction instruction = Instruction::decode(this->_pc, memory_view);
+        Instruction instruction = Instruction::decode(this->_pc, memory_view); // modifies pc in-place
         std::cout << instruction.to_string();
         std::cin.get();
     }
