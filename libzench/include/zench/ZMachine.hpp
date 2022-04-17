@@ -51,7 +51,6 @@ namespace com::saxbophone::zench {
         };
 
         class ZMachineImpl;
-        friend ZMachineImpl;
 
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
