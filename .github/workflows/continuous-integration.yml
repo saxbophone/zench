@@ -8,6 +8,14 @@ on:
     types: [opened, synchronize]
 
 jobs:
+  test-docs-build:
+    runs-on: ubuntu-20.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Doxygen Docs
+        uses: mattnotmitt/doxygen-action@v1.3.3
+
   continuous-integration:
     runs-on: ${{ matrix.os }}
     env:
@@ -77,6 +85,13 @@ jobs:
         shell: bash
         # Execute the build.  You can specify a specific target with "--target <NAME>"
         run: cmake --build . --config $BUILD_TYPE
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: bash
+        # Execute tests defined by the CMake configuration.
+        # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+        run: ctest -C $BUILD_TYPE --no-tests=error
 
       - name: Test Install
         working-directory: ${{github.workspace}}/build
