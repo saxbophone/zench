@@ -4,11 +4,18 @@
  * <Copyright information goes here>
  */
 
+#include <cstddef>   // size_t
+
 #include <algorithm> // clamp
+#include <bitset>    // bitset
+#include <deque>     // deque
 #include <iostream>  // XXX: debug
 #include <istream>   // istream
 #include <iterator>  // istreambuf_iterator
+#include <memory>    // unique_ptr
+#include <optional>  // optional
 #include <span>      // span
+#include <vector>    // vector
 
 #include <zench/zench.hpp>
 #include <zench/ZMachine.hpp>
