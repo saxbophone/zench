@@ -36,11 +36,11 @@ namespace com::saxbophone::zench {
         this->_setup_accessors();
         this->_pc = this->_load_word(0x06); // load initial program counter
         this->_call_stack.emplace_back(); // setup dummy stack frame
-        this->_state_valid = true; // this VM is ready to go
+        this->_is_running = true;
     }
 
     bool ZMachine::is_running() {
-        return true;
+        return this->_is_running;
     }
 
     void ZMachine::execute() {

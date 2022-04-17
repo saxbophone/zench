@@ -68,7 +68,6 @@ namespace com::saxbophone::zench {
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
 
-        bool _state_valid = false; // whether the machine is runnable
         bool _is_running = false; // whether the machine has not quit
 
         ByteAddress _static_memory_begin; // derived from header
