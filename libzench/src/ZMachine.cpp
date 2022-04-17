@@ -4,9 +4,9 @@
  * <Copyright information goes here>
  */
 
-#include <algorithm>
-#include <iostream> // XXX: debug
-#include <iterator>
+#include <algorithm> // clamp
+#include <iostream>  // XXX: debug
+#include <iterator>  // istreambuf_iterator
 
 #include <zench/zench.hpp>
 #include <zench/ZMachine.hpp>

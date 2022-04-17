@@ -53,8 +53,8 @@ namespace com::saxbophone::zench {
         }
     };
 
-    const std::string VERSION = ZENCH_VERSION_STRING;
-    const std::string VERSION_DESCRIPTION = "zench v" ZENCH_VERSION_STRING;
+    extern const std::string VERSION;
+    extern const std::string VERSION_DESCRIPTION;
 }
 
 #endif // include guard

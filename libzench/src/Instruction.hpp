@@ -1,5 +1,4 @@
 /**
- * @file
  * This is a sample public compilation unit.
  *
  * @author Your Name <your.email.address@goes.here>

@@ -2,6 +2,7 @@
 target_sources(
     libzench
         PRIVATE
+            zench.cpp
             ZMachine.cpp
 )
 # sub-namespace source directories

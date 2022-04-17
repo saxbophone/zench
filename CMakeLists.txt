@@ -137,7 +137,14 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 # a better way to load dependencies
 include(CPM)
 
+# library
 add_subdirectory(libzench)
+# unit tests --only enable if requested AND we're not building as a sub-project
+if(ENABLE_TESTS AND NOT ZENCH_SUBPROJECT)
+    message(STATUS "[zench] Unit Tests Enabled")
+    add_subdirectory(tests)
+    enable_testing()
+endif()
 
 add_executable(zench main.cpp)
 target_link_libraries(zench Zench::libzench)
