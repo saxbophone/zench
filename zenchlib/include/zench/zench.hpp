@@ -30,6 +30,8 @@ namespace com::saxbophone::zench {
     using Address = std::uint32_t;
     using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
     using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
+    // Z-machine string stuff
+    using ZChar = Byte;
 
     // base class for all of zench's exceptions
     class Exception : public std::exception {};

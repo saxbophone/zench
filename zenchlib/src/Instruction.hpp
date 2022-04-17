@@ -60,21 +60,16 @@ namespace com::saxbophone::zench {
             SWord offset : 14; // branch offset
         };
 
-        struct StringLiteral {
-            Address address;
-            std::size_t length = 0;
-        };
-
         Opcode opcode;
         Form form; // form specifies the structure of an instruction
         Category category; // categories are rather misleadingly named after their operand counts, a trait that doesn't quite hold true
         std::vector<Operand> operands;
         std::optional<Byte> store_variable;
         std::optional<Branch> branch;
-        std::optional<StringLiteral> trailing_string_literal;
+        std::optional<std::span<const ZChar>> trailing_string_literal;
         // strictly metadata fields for assembly output:
         Address location; // address of the first byte of this instruction
-        std::vector<Byte> bytecode; // the raw bytes that encode this instruction
+        std::span<const Byte> bytecode; // the raw bytes that encode this instruction
 
         static bool _is_instruction_store(Instruction instruction) {
             // NOTE: store opcodes from versions greater than v3 ignored
@@ -151,7 +146,6 @@ namespace com::saxbophone::zench {
             // store instruction origin address
             instruction.location = pc;
             Byte first = memory_view[pc++]; // first byte of instruction
-            instruction.bytecode.push_back(first);
             // determine the instruction's form first, this is useful mainly for categorising instructions
             if (first == 0xBE) { // extended mode
                 // XXX: extended mode not implemented, we're only targeting version 3 right now
@@ -210,7 +204,6 @@ namespace com::saxbophone::zench {
                 }
                 // read operand types from the next byte
                 Byte operand_types = memory_view[pc++];
-                instruction.bytecode.push_back(operand_types);
                 for (int i = 4; i --> 0;) {
                     Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
                     if (type == Instruction::OperandType::OMITTED) {
@@ -225,25 +218,20 @@ namespace com::saxbophone::zench {
                 if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
                     // would use ZMachine.load_word() but it's not accessible
                     operand.word = ((Word)memory_view[pc] << 8) + memory_view[pc + 1];
-                    instruction.bytecode.push_back(memory_view[pc]);
-                    instruction.bytecode.push_back(memory_view[pc + 1]);
                     pc += 2;
                 } else {
                     // both SMALL_CONSTANT and VARIABLE are byte-sized
-                    instruction.bytecode.push_back(memory_view[pc]);
                     operand.byte = memory_view[pc++];
                 }
             }
             // handle store if this instruction stores a result
             if (Instruction::_is_instruction_store(instruction)) {
-                instruction.bytecode.push_back(memory_view[pc]);
                 instruction.store_variable = memory_view[pc++];
             }
             // handle branch if this instruction is branching
             if (Instruction::_is_instruction_branch(instruction)) {
                 // decode branch address and store in branch_offset
                 Byte branch = memory_view[pc++];
-                instruction.bytecode.push_back(branch);
                 instruction.branch = Instruction::Branch{
                     .on_true = (branch & 0b10000000) != 0,
                     .offset = 0,
@@ -254,30 +242,24 @@ namespace com::saxbophone::zench {
                     instruction.branch->offset = branch & 0b00111111;
                 } else { // it's a 2-byte branch
                     // use bottom 6 bits of first byte and all 8 of the second
-                    instruction.bytecode.push_back(memory_view[pc]);
                     instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + memory_view[pc++];
                 }
             }
             // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
             if (instruction.category == Instruction::Category::_0OP) {
                 if (instruction.opcode == 2 or instruction.opcode == 3) {
-                    instruction.trailing_string_literal = {
-                        .address = pc,
-                        .length = 0,
-                    };
+                    Address start = pc; // the Z-char string starts here
                     // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
                     while ((memory_view[pc] & 0b10000000) == 0) {
-                        instruction.bytecode.push_back(memory_view[pc]);
-                        instruction.bytecode.push_back(memory_view[pc + 1]);
                         pc += 2;
-                        instruction.trailing_string_literal->length += 2;
                     }
-                    instruction.bytecode.push_back(memory_view[pc]);
-                    instruction.bytecode.push_back(memory_view[pc + 1]);
                     pc += 2;
-                    instruction.trailing_string_literal->length += 2;
+                    // difference between pc value now and start indicates length
+                    instruction.trailing_string_literal = memory_view.subspan(start, pc - start);
                 }
             }
+            // we can construct a span over the bytecode of this instruction using location and current pc value
+            instruction.bytecode = memory_view.subspan(instruction.location, pc - instruction.location);
             return instruction;
         }
 
@@ -425,7 +407,14 @@ namespace com::saxbophone::zench {
         }
 
         std::string literal_string() const {
-            return trailing_string_literal ? " {Z-str}" : "";
+            if (!trailing_string_literal) { return ""; }
+            std::stringstream str;
+            str << " Z-str{" << std::hex;
+            for (std::size_t i = 0; i < trailing_string_literal->size(); i++) {
+                str << (Word)trailing_string_literal.value()[i];
+            }
+            str << "}";
+            return str.str();
         }
 
         std::string store_string() const {
