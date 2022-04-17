@@ -61,6 +61,97 @@ namespace com::saxbophone::zench {
         Address location; // address of the first byte of this instruction
         std::span<const Byte> bytecode; // the raw bytes that encode this instruction
 
+        static void _determine_opcode_type(
+            Address& pc,
+            std::span<const Byte> memory_view,
+            Instruction& instruction
+        ) {
+            Byte first = memory_view[pc++]; // first byte of instruction
+            // determine the instruction's form first, this is useful mainly for categorising instructions
+            if (first == 0xBE) { // extended mode
+                // XXX: extended mode not implemented, we're only targeting version 3 right now
+                // TODO: implement extended mode when running Version 5
+                throw UnsupportedVersionException();
+            } else {
+                // read top two bits to determine instruction form
+                Byte top_bits = first >> 6;
+                switch (top_bits) {
+                case 0b11: {
+                    instruction.form = Instruction::Form::VARIABLE;
+                    // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
+                    if ((first & 0b00100000) == 0) {
+                        // in other words, a 2OP-category opcode assembled in variable form
+                        instruction.category = Instruction::Category::_2OP;
+                    } else {
+                        // otherwise, it is in fact a *true* VAR opcode assembled in variable form!
+                        instruction.category = Instruction::Category::VAR;
+                    }
+                    // opcode is always bottom 5 bits
+                    instruction.opcode = first & 0b00011111;
+                    // handle variable-form operand types
+                    // XXX: handle double-var opcodes (two operand type bytes)
+                    if (instruction.opcode == 12 or instruction.opcode == 26) {
+                        throw UnsupportedVersionException();
+                    }
+                    // read operand types from the next byte
+                    Byte operand_types = memory_view[pc++];
+                    for (int i = 4; i --> 0;) {
+                        Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
+                        if (type == Instruction::OperandType::OMITTED) {
+                            break;
+                        }
+                        instruction.operands.emplace_back(type);
+                    }
+                    break;
+                }
+                case 0b10: {
+                    instruction.form = Instruction::Form::SHORT;
+                    // determine argument type and opcode --type is bits 4 and 5
+                    Instruction::OperandType type = (Instruction::OperandType)((first & 0b00110000) >> 4);
+                    // don't push OMITTED types into operand list
+                    if (type != Instruction::OperandType::OMITTED) {
+                        instruction.category = Instruction::Category::_1OP;
+                        instruction.operands = {type};
+                    } else {
+                        instruction.category = Instruction::Category::_0OP;
+                    }
+                    // opcode is always bottom 4 bits
+                    instruction.opcode = first & 0b00001111;
+                    break;
+                }
+                default:
+                    instruction.form = Instruction::Form::LONG;
+                    instruction.category = Instruction::Category::_2OP;
+                    // long form is always 2-OP --op types are packed into bits 6 and 5
+                    instruction.operands = {
+                        first & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                        first & 0b00100000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
+                    };
+                    // opcode is always bottom 5 bits
+                    instruction.opcode = first & 0b00011111;
+                    break;
+                }
+            }
+        }
+
+        static void _read_in_operand_values(
+            Address& pc,
+            std::span<const Byte> memory_view,
+            Instruction& instruction
+        ) {
+            for (auto& operand : instruction.operands) {
+                // this is the only type that pulls a word rather than a byte
+                if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
+                    // would use ZMachine.load_word() but it's not accessible
+                    operand.word = ((Word)memory_view[pc] << 8) + memory_view[pc + 1];
+                    pc += 2;
+                } else {
+                    // both SMALL_CONSTANT and VARIABLE are byte-sized
+                    operand.byte = memory_view[pc++];
+                }
+            }
+        }
+
         static bool _is_instruction_store(Instruction instruction) {
             // NOTE: store opcodes from versions greater than v3 ignored
             // also extended form, but we're not handling those right now
@@ -130,110 +221,43 @@ namespace com::saxbophone::zench {
             return false;
         }
 
+        static void _handle_branch(
+            Address& pc,
+            std::span<const Byte> memory_view,
+            Instruction& instruction
+        ) {
+            // decode branch address and store in branch_offset
+            Byte branch = memory_view[pc++];
+            instruction.branch = Instruction::Branch{
+                .on_true = (branch & 0b10000000) != 0,
+                .offset = 0,
+            };
+            // bit 6 of the first branch byte is set if the offset value is 1 byte only
+            if ((branch & 0b01000000) != 0) { // it's a 1-byte branch
+                // use bottom 6 bits for offset
+                instruction.branch->offset = branch & 0b00111111;
+            } else { // it's a 2-byte branch
+                // use bottom 6 bits of first byte and all 8 of the second
+                instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + memory_view[pc++];
+            }
+        }
+
         // NOTE: modifies pc in-place!
         static Instruction decode(Address& pc, std::span<const Byte> memory_view) {
             Instruction instruction;
             // store instruction origin address
             instruction.location = pc;
-            Byte first = memory_view[pc++]; // first byte of instruction
-            // determine the instruction's form first, this is useful mainly for categorising instructions
-            if (first == 0xBE) { // extended mode
-                // XXX: extended mode not implemented, we're only targeting version 3 right now
-                // TODO: implement extended mode when running Version 5
-                throw UnsupportedVersionException();
-            } else {
-                // read top two bits to determine instruction form
-                Byte top_bits = first >> 6;
-                switch (top_bits) {
-                case 0b11:
-                    instruction.form = Instruction::Form::VARIABLE;
-                    // if bit 5 is not set, then it's *categorised* as 2-OP but it's not actually limited to only 2 operands!
-                    if ((first & 0b00100000) == 0) {
-                        // in other words, a 2OP-category opcode assembled in variable form
-                        instruction.category = Instruction::Category::_2OP;
-                    } else {
-                        // otherwise, it is in fact a *true* VAR opcode assembled in variable form!
-                        instruction.category = Instruction::Category::VAR;
-                    }
-                    // opcode is always bottom 5 bits
-                    instruction.opcode = first & 0b00011111;
-                    break;
-                case 0b10: {
-                    instruction.form = Instruction::Form::SHORT;
-                    // determine argument type and opcode --type is bits 4 and 5
-                    Instruction::OperandType type = (Instruction::OperandType)((first & 0b00110000) >> 4);
-                    // don't push OMITTED types into operand list
-                    if (type != Instruction::OperandType::OMITTED) {
-                        instruction.category = Instruction::Category::_1OP;
-                        instruction.operands = {type};
-                    } else {
-                        instruction.category = Instruction::Category::_0OP;
-                    }
-                    // opcode is always bottom 4 bits
-                    instruction.opcode = first & 0b00001111;
-                    break;
-                }
-                default:
-                    instruction.form = Instruction::Form::LONG;
-                    instruction.category = Instruction::Category::_2OP;
-                    // long form is always 2-OP --op types are packed into bits 6 and 5
-                    instruction.operands = {
-                        first & 0b01000000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
-                        first & 0b00100000 ? Instruction::OperandType::VARIABLE : Instruction::OperandType::SMALL_CONSTANT,
-                    };
-                    // opcode is always bottom 5 bits
-                    instruction.opcode = first & 0b00011111;
-                    break;
-                }
-            }
-            // handle variable-form operand types
-            if (instruction.form == Instruction::Form::VARIABLE) {
-                // XXX: handle double-var opcodes (two operand type bytes)
-                if (instruction.opcode == 12 or instruction.opcode == 26) {
-                    throw UnsupportedVersionException();
-                }
-                // read operand types from the next byte
-                Byte operand_types = memory_view[pc++];
-                for (int i = 4; i --> 0;) {
-                    Instruction::OperandType type = (Instruction::OperandType)((operand_types >> i * 2) & 0b11);
-                    if (type == Instruction::OperandType::OMITTED) {
-                        break;
-                    }
-                    instruction.operands.emplace_back(type);
-                }
-            }
+            // determines form, category, operand types and number of the opcode
+            Instruction::_determine_opcode_type(pc, memory_view, instruction);
             // now we can read in the actual operand values
-            for (auto& operand : instruction.operands) {
-                // this is the only type that pulls a word rather than a byte
-                if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                    // would use ZMachine.load_word() but it's not accessible
-                    operand.word = ((Word)memory_view[pc] << 8) + memory_view[pc + 1];
-                    pc += 2;
-                } else {
-                    // both SMALL_CONSTANT and VARIABLE are byte-sized
-                    operand.byte = memory_view[pc++];
-                }
-            }
+            Instruction::_read_in_operand_values(pc, memory_view, instruction);
             // handle store if this instruction stores a result
             if (Instruction::_is_instruction_store(instruction)) {
                 instruction.store_variable = memory_view[pc++];
             }
             // handle branch if this instruction is branching
             if (Instruction::_is_instruction_branch(instruction)) {
-                // decode branch address and store in branch_offset
-                Byte branch = memory_view[pc++];
-                instruction.branch = Instruction::Branch{
-                    .on_true = (branch & 0b10000000) != 0,
-                    .offset = 0,
-                };
-                // bit 6 of the first branch byte is set if the offset value is 1 byte only
-                if ((branch & 0b01000000) != 0) { // it's a 1-byte branch
-                    // use bottom 6 bits for offset
-                    instruction.branch->offset = branch & 0b00111111;
-                } else { // it's a 2-byte branch
-                    // use bottom 6 bits of first byte and all 8 of the second
-                    instruction.branch->offset = ((Word)(branch & 0b00111111) << 8) + memory_view[pc++];
-                }
+                Instruction::_handle_branch(pc, memory_view, instruction);
             }
             // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
             if (instruction.category == Instruction::Category::_0OP) {
