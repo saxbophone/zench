@@ -137,7 +137,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Mo
 # a better way to load dependencies
 include(CPM)
 
-add_subdirectory(zenchlib)
+add_subdirectory(libzench)
 
 add_executable(zench main.cpp)
 target_link_libraries(zench Zench::libzench)
