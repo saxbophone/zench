@@ -20,6 +20,7 @@
 
 namespace com::saxbophone::zench {
     struct Instruction {
+    public:
         using Opcode = Byte; // TODO: maybe convert to enum?
         enum OperandType : Byte {
             LARGE_CONSTANT = 0b00,
@@ -61,6 +62,7 @@ namespace com::saxbophone::zench {
         Address location; // address of the first byte of this instruction
         std::span<const Byte> bytecode; // the raw bytes that encode this instruction
 
+    private:
         static void _determine_opcode_type(
             Address& pc,
             std::span<const Byte> memory_view,
@@ -152,33 +154,33 @@ namespace com::saxbophone::zench {
             }
         }
 
-        static bool _is_instruction_store(Instruction instruction) {
+        bool _is_instruction_store() const {
             // NOTE: store opcodes from versions greater than v3 ignored
             // also extended form, but we're not handling those right now
-            if (instruction.category == Instruction::Category::VAR) {
-                switch (instruction.opcode) {
+            if (this->category == Instruction::Category::VAR) {
+                switch (this->opcode) {
                 case 0x00: case 0x07:
                     return true;
                 default:
                     return false;
                 }
-            } else if (instruction.form == Instruction::Form::EXTENDED) {
+            } else if (this->form == Instruction::Form::EXTENDED) {
                 // let's trap on extended instructions anyway (should never reach here)
                 throw UnsupportedVersionException();
             }
             // otherwise...
-            switch (instruction.category) {
+            switch (this->category) {
             case Instruction::Category::_0OP: // 0OP
                 return false; // no 0OP opcodes store in v3 (v5 does have one)
             case Instruction::Category::_1OP: // 1OP
-                switch (instruction.opcode) {
+                switch (this->opcode) {
                 case 0x01: case 0x02: case 0x03: case 0x04: case 0x0e: case 0x0f:
                     return true;
                 default:
                     return false;
                 }
             case Instruction::Category::_2OP: // 2OP
-                switch (instruction.opcode) {
+                switch (this->opcode) {
                 case 0x08: case 0x09: case 0x0f: case 0x10: case 0x11: case 0x12:
                 case 0x13: case 0x14: case 0x15: case 0x16: case 0x17: case 0x18:
                     return true;
@@ -191,30 +193,30 @@ namespace com::saxbophone::zench {
             return false;
         }
 
-        static bool _is_instruction_branch(Instruction instruction) {
+        bool _is_instruction_branch() const {
             // NOTE: branch opcodes from versions greater than v3 ignored
             // also extended form, but we're not handling those right now
-            if (instruction.category == Instruction::Category::VAR) {
+            if (this->category == Instruction::Category::VAR) {
                 return false; // There are NO branching VAR instructions in v3!
-            } else if (instruction.form == Instruction::Form::EXTENDED) {
+            } else if (this->form == Instruction::Form::EXTENDED) {
                 // let's trap on extended instructions anyway (should never reach here)
                 throw UnsupportedVersionException();
             }
             // otherwise...
-            switch (instruction.category) {
+            switch (this->category) {
             case Instruction::Category::_0OP: // 0OP
-                switch (instruction.opcode) {
+                switch (this->opcode) {
                 case 0x05: case 0x06: case 0x0d:
                     return true;
                 default:
                     return false;
                 }
             case Instruction::Category::_1OP: // 1OP
-                return instruction.opcode < 3; // 0, 1 and 2 all branch
+                return this->opcode < 3; // 0, 1 and 2 all branch
             case Instruction::Category::_2OP: // 2OP
                 return
-                    (0 < instruction.opcode and instruction.opcode < 8)
-                    or instruction.opcode == 0x0a;
+                    (0 < this->opcode and this->opcode < 8)
+                    or this->opcode == 0x0a;
             default: // XXX: should never reach here
                 throw Exception();
             }
@@ -242,48 +244,37 @@ namespace com::saxbophone::zench {
             }
         }
 
-        // NOTE: modifies pc in-place!
-        static Instruction decode(Address& pc, std::span<const Byte> memory_view) {
-            Instruction instruction;
-            // store instruction origin address
-            instruction.location = pc;
-            // determines form, category, operand types and number of the opcode
-            Instruction::_determine_opcode_type(pc, memory_view, instruction);
-            // now we can read in the actual operand values
-            Instruction::_read_in_operand_values(pc, memory_view, instruction);
-            // handle store if this instruction stores a result
-            if (Instruction::_is_instruction_store(instruction)) {
-                instruction.store_variable = memory_view[pc++];
-            }
-            // handle branch if this instruction is branching
-            if (Instruction::_is_instruction_branch(instruction)) {
-                Instruction::_handle_branch(pc, memory_view, instruction);
-            }
-            // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
-            if (instruction.category == Instruction::Category::_0OP) {
-                if (instruction.opcode == 2 or instruction.opcode == 3) {
-                    Address start = pc; // the Z-char string starts here
-                    // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
-                    while ((memory_view[pc] & 0b10000000) == 0) {
-                        pc += 2;
-                    }
-                    pc += 2;
-                    // difference between pc value now and start indicates length
-                    instruction.trailing_string_literal = memory_view.subspan(start, pc - start);
+        bool _has_string_literal() const {
+            if (this->category == Instruction::Category::_0OP) {
+                if (this->opcode == 2 or this->opcode == 3) {
+                    return true;
                 }
             }
-            // we can construct a span over the bytecode of this instruction using location and current pc value
-            instruction.bytecode = memory_view.subspan(instruction.location, pc - instruction.location);
-            return instruction;
+            return false;
         }
 
-        std::string address_string() const {
+        static void _handle_string_literal(
+            Address& pc,
+            std::span<const Byte> memory_view,
+            Instruction& instruction
+        ) {
+            Address start = pc; // the Z-char string starts here
+            // Z-characters are encoded in 2-byte chunks, the string ends with a chunk whose first byte has its highest bit set
+            while ((memory_view[pc] & 0b10000000) == 0) {
+                pc += 2;
+            }
+            pc += 2;
+            // difference between pc value now and start indicates length
+            instruction.trailing_string_literal = memory_view.subspan(start, pc - start);
+        }
+
+        std::string _address_string() const {
             std::stringstream address;
             address << std::hex << std::setw(6) << this->location;
             return address.str();
         }
 
-        std::string get_2op_name() const {
+        std::string _get_2op_name() const {
             switch (opcode) {
             case 0x01: return "je";
             case 0x02: return "jl";
@@ -313,7 +304,7 @@ namespace com::saxbophone::zench {
             }
         }
 
-        std::string get_1op_name() const {
+        std::string _get_1op_name() const {
             switch (opcode) {
             case 0x0: return "jz";
             case 0x1: return "get_sibling";
@@ -334,7 +325,7 @@ namespace com::saxbophone::zench {
             }
         }
 
-        std::string get_0op_name() const {
+        std::string _get_0op_name() const {
             switch (opcode) {
             case 0x0: return "rtrue";
             case 0x1: return "rfalse";
@@ -354,7 +345,7 @@ namespace com::saxbophone::zench {
             }
         }
 
-        std::string get_var_name() const {
+        std::string _get_var_name() const {
             switch (opcode) {
             case 0x00: return "call";
             case 0x01: return "storew";
@@ -375,28 +366,28 @@ namespace com::saxbophone::zench {
             }
         }
 
-        std::string get_ext_name() const {
+        std::string _get_ext_name() const {
             return "EXT";
         }
 
-        std::string mnemonic_string() const {
+        std::string _mnemonic_string() const {
             switch (category) {
             case Category::_0OP:
-                return get_0op_name();
+                return _get_0op_name();
             case Category::_1OP:
-                return get_1op_name();
+                return _get_1op_name();
             case Category::_2OP:
-                return get_2op_name();
+                return _get_2op_name();
             case Category::VAR:
-                return get_var_name();
+                return _get_var_name();
             case Category::EXT:
-                return get_ext_name();
+                return _get_ext_name();
             default:
                 return "op-count?";
             }
         }
 
-        std::string arguments_string() const {
+        std::string _arguments_string() const {
             std::stringstream arguments;
             if (operands.size() > 0) {
                 arguments << " ";
@@ -420,7 +411,7 @@ namespace com::saxbophone::zench {
             return arguments.str();
         }
 
-        std::string literal_string() const {
+        std::string _literal_string() const {
             if (!trailing_string_literal) { return ""; }
             std::stringstream str;
             str << " Z-str{" << std::hex;
@@ -431,14 +422,14 @@ namespace com::saxbophone::zench {
             return str.str();
         }
 
-        std::string store_string() const {
+        std::string _store_string() const {
             if (not store_variable) { return ""; }
             std::stringstream store;
             store << " -> " << std::hex << std::setfill('0') << std::setw(2) << (Word)*store_variable;
             return store.str();
         }
 
-        std::string branch_string() const {
+        std::string _branch_string() const {
             if (not branch) { return ""; }
             std::stringstream jump;
             jump << " ?" << (branch->on_true ? " " : "! ");
@@ -457,7 +448,7 @@ namespace com::saxbophone::zench {
             return bytes.str();
         }
 
-        std::string metadata() const {
+        std::string _metadata() const {
             std::stringstream data;
             switch (form) {
             case Form::LONG:
@@ -479,11 +470,38 @@ namespace com::saxbophone::zench {
             return data.str();
         }
 
+    public:
+        // NOTE: modifies pc in-place!
+        static Instruction decode(Address& pc, std::span<const Byte> memory_view) {
+            Instruction instruction;
+            // store instruction origin address
+            instruction.location = pc;
+            // determines form, category, operand types and number of the opcode
+            Instruction::_determine_opcode_type(pc, memory_view, instruction);
+            // now we can read in the actual operand values
+            Instruction::_read_in_operand_values(pc, memory_view, instruction);
+            // handle store if this instruction stores a result
+            if (instruction._is_instruction_store()) {
+                instruction.store_variable = memory_view[pc++];
+            }
+            // handle branch if this instruction is branching
+            if (instruction._is_instruction_branch()) {
+                Instruction::_handle_branch(pc, memory_view, instruction);
+            }
+            // as a special case, instructions *print* and *print_ret* have a literal string following them, which we need to skip
+            if (instruction._has_string_literal()) {
+                Instruction::_handle_string_literal(pc, memory_view, instruction);
+            }
+            // we can construct a span over the bytecode of this instruction using location and current pc value
+            instruction.bytecode = memory_view.subspan(instruction.location, pc - instruction.location);
+            return instruction;
+        }
+
         std::string to_string() const {
             return
-                address_string() + ": @" + mnemonic_string() +
-                arguments_string() + literal_string() +
-                store_string() + branch_string() + "; " + metadata();
+                _address_string() + ": @" + _mnemonic_string() +
+                _arguments_string() + _literal_string() +
+                _store_string() + _branch_string() + "; " + _metadata();
         }
     };
 }
