@@ -17,11 +17,11 @@
 #define COM_SAXBOPHONE_ZENCH_ZMACHINE_HPP
 
 #include <cstddef>   // size_t
-#include <cstdint>   // fixed-width types
 
 #include <bitset>    // bitset
 #include <deque>     // deque
 #include <istream>   // istream
+#include <memory>    // unique_ptr
 #include <optional>  // optional
 #include <span>      // span
 #include <vector>    // vector
@@ -33,6 +33,7 @@ namespace com::saxbophone::zench {
     public:
         // NOTE: it is permitted for story_file to be closed for further reading after this constructor returns
         ZMachine(std::istream& story_file);
+        ~ZMachine();
 
         bool is_running(); // returns true if a runnable machine has not quit
 
@@ -48,25 +49,14 @@ namespace com::saxbophone::zench {
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
             std::deque<Word> local_stack; // the "inner" stack directly accessible to routine
         };
-        // TODO: create a WordDelegate class which can refer to the bytes its
-        // made up of and write back to them when =operator is used on it
-        Word _load_word(WordAddress address);
-        // loads file header only
-        void _load_header(std::istream& story_file);
-        // loads the rest of the file after header has been loaded
-        void _load_remaining(std::istream& story_file);
-        // sets up span accessors for reading according to memory map
-        void _setup_accessors();
-        // TODO: consider whether these two functions should be merged
-        Word& _global_variable(Byte number);
-        Word& _local_variable(Byte number);
-        // TODO: local stack access/manipulation
 
-        // NOTE: this method advances the Program Counter (_pc) and writes to stdout
-        void _print_next_instruction();
+        class ZMachineImpl;
+        friend ZMachineImpl;
 
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
+
+        std::unique_ptr<ZMachineImpl> _impl;
 
         bool _is_running = false; // whether the machine has not quit
 
