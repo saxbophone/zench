@@ -147,6 +147,6 @@ if(ENABLE_TESTS AND NOT ZENCH_SUBPROJECT)
 endif()
 
 add_executable(zench main.cpp)
-target_link_libraries(zench Zench::libzench)
+target_link_libraries(zench PUBLIC Zench::libzench)
 
 install(TARGETS zench)
