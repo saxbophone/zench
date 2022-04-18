@@ -140,13 +140,31 @@ namespace com::saxbophone::zench {
             return 2 * packed; // XXX: version 1..3 only
         }
 
+        // looks up the operand type and global, local variables (if needed)
+        // returns the actual value intended, either literal or value stored in
+        // denoted variable
+        Word operand_value(Instruction::Operand operand) {
+            switch (operand.type) {
+            case Instruction::OperandType::LARGE_CONSTANT:
+                return operand.word;
+            case Instruction::OperandType::SMALL_CONSTANT:
+                return operand.byte;
+            case Instruction::OperandType::VARIABLE:
+                // TODO: needs access to local and global variables!
+                // return variable(operand.byte);
+                return 0x7f; // XXX: dummy value
+            default:
+                throw Exception(); // ERROR! type can't be OMITTED!
+            }
+        }
+
         void opcode_call(const Instruction& instruction) {
             // must have 1..4 operands --routine address + 0..3 arguments
             if (not (0 < instruction.operands.size() and instruction.operands.size() <= 4)) {
                 throw WrongNumberOfInstructionOperandsException();
             }
             // construct a new StackFrame for this routine, populated appropriately
-            Address routine_address = expand_packed_address(instruction.operands[0].word);
+            Address routine_address = expand_packed_address(operand_value(instruction.operands[0]));
             // XXX: handle special case: call address 0 returns false (0)
             if (routine_address == 0) {
                 // TODO: needs access to local and global variables!
@@ -168,11 +186,7 @@ namespace com::saxbophone::zench {
             // now, write in any arguments to local variables, but stop when the range of either is exceeded
             for (std::size_t a = 0; a < locals_count and a < args_count; a++) {
                 auto operand = instruction.operands[1 + a];
-                if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                    routine.local_variables[a] = operand.word;
-                } else {
-                    routine.local_variables[a] = operand.byte;
-                }
+                routine.local_variables[a] = operand_value(operand);
             }
             // finally, just push the new StackFrame to the call stack and move PC to new routine
             this->call_stack.push_back(routine);
@@ -200,7 +214,19 @@ namespace com::saxbophone::zench {
             }
         }
 
-        void opcode_jump(const Instruction& instruction) {}
+        void opcode_jump(const Instruction& instruction) {
+            // must have 1 operand only!
+            if (instruction.operands.size() != 1) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // the jump address is a 2-byte signed offset to apply to the PC
+            SWord offset = (SWord)instruction.operands[0].word;
+            /*
+             * The destination of the jump opcode is:
+             * Address after instruction + Offset - 2
+             */
+            this->pc = (Address)((int)this->pc + offset - 2);
+        }
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
