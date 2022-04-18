@@ -176,8 +176,8 @@ namespace com::saxbophone::zench {
                 // variable(instruction.store_variable) = 0;
                 return;
             }
-            std::size_t args_count = instruction.operands.size() - 1;
-            std::size_t locals_count = this->memory[routine_address];
+            Byte args_count = instruction.operands.size() - 1;
+            Byte locals_count = this->memory[routine_address];
             StackFrame routine{
                 this->pc, // return address, i.e. the byte after this call instruction
                 instruction.store_variable.value(),
@@ -185,11 +185,11 @@ namespace com::saxbophone::zench {
                 locals_count
             };
             // populate local variables
-            for (std::size_t l = 0; l < locals_count; l++) {
+            for (Byte l = 0; l < locals_count; l++) {
                 routine.local_variables[l] = this->load_word(routine_address + l * 2);
             }
             // now, write in any arguments to local variables, but stop when the range of either is exceeded
-            for (std::size_t a = 0; a < locals_count and a < args_count; a++) {
+            for (Byte a = 0; a < locals_count and a < args_count; a++) {
                 auto operand = instruction.operands[1 + a];
                 routine.local_variables[a] = operand_value(operand);
             }
