@@ -48,7 +48,10 @@ namespace com::saxbophone::zench {
             std::span<Byte> _memory;
             std::size_t _base_addr;
             std::optional<std::reference_wrapper<Word>> _word;
+            std::optional<std::reference_wrapper<std::deque<Word>>> _stack;
         public:
+            Proxy(std::deque<Word>& stack) : _stack(stack) {}
+
             Proxy(Word& word) : _word(word) {}
 
             Proxy(std::span<Byte> memory, std::size_t base_addr)
@@ -57,22 +60,28 @@ namespace com::saxbophone::zench {
               {}
 
             Proxy& operator=(Word w) {
-                if (not this->_word) {
+                if (this->_stack) {
+                    this->_stack->get().push_back(w);
+                } else if (this->_word) {
+                    this->_word = w;
+                } else {
                     this->_memory[this->_base_addr] = w >> 8;
                     this->_memory[this->_base_addr + 1] = w & 0x00ff;
-                } else {
-                    this->_word = w;
                 }
                 return *this;
             }
 
             operator Word() const {
-                if (not this->_word) {
+                if (this->_stack) {
+                    Word value = this->_stack->get().back();
+                    this->_stack->get().pop_back();
+                    return value;
+                } else if (this->_word) {
+                    return this->_word.value();
+                } else {
                     return
                         (this->_memory[this->_base_addr] << 8) +
                         this->_memory[this->_base_addr + 1];
-                } else {
-                    return this->_word.value();
                 }
             }
         };
@@ -171,14 +180,15 @@ namespace com::saxbophone::zench {
         }
         // NOTE: this doesn't handle access to the stack pointer
         Proxy get_variable(Byte number) {
-            if (0x01 <= number and number <= 0x0f) { // locals
+            if (number == 0x00) { // stack pointer
+                return Proxy(this->call_stack.back().local_stack);
+            } else if (0x01 <= number and number <= 0x0f) { // locals
                 return Proxy(this->call_stack.back().local_variables[number - 1]);
             } else if (0x10 <= number and number <= 0xff) { // globals
-                return Proxy(memory, globals_address + number);
+                return Proxy(memory, globals_address + number - 0x10);
             } else {
-                throw Exception(); // invalid variable access attempted!
+                throw Exception(); // dead code, should never reach (all values covered)
             }
-
         }
         // TODO: local stack access/manipulation
 
@@ -196,9 +206,6 @@ namespace com::saxbophone::zench {
             case Instruction::OperandType::SMALL_CONSTANT:
                 return operand.byte;
             case Instruction::OperandType::VARIABLE:
-                // TODO: needs access to local and global variables!
-                // return variable(operand.byte);
-                // XXX: dummy version
                 return get_variable(operand.byte);
             default:
                 throw Exception(); // ERROR! type can't be OMITTED!
@@ -212,9 +219,8 @@ namespace com::saxbophone::zench {
             }
             // construct a new StackFrame for this routine, populated appropriately
             Address routine_address = expand_packed_address(operand_value(instruction.operands[0]));
-            // XXX: handle special case: call address 0 returns false (0)
+            // handle special case: call address 0 returns false (0)
             if (routine_address == 0) {
-                // TODO: needs access to local and global variables!
                 get_variable(instruction.store_variable.value()) = 0;
                 return;
             }
@@ -253,11 +259,11 @@ namespace com::saxbophone::zench {
             this->call_stack.pop_back();
             // set result variable
             auto operand = instruction.operands[0];
-            // TODO: needs access to local and global variables!
+            // access local and global variables
             if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                // variable(store_variable) = operand.word;
+                get_variable(store_variable) = operand.word;
             } else {
-                // variable(store_variable) = operand.byte;
+                get_variable(store_variable) = operand.byte;
             }
         }
 
