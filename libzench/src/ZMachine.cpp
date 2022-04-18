@@ -182,10 +182,10 @@ namespace com::saxbophone::zench {
         Proxy get_variable(Byte number) {
             if (number == 0x00) { // stack pointer
                 return Proxy(this->call_stack.back().local_stack);
-            } else if (0x01 <= number and number <= 0x0f) { // locals
+            } else if (0x01 <= number and number <= 0x0f) { // locals = 0x01..0x0f
                 return Proxy(this->call_stack.back().local_variables[number - 1]);
-            } else if (0x10 <= number and number <= 0xff) { // globals
-                return Proxy(memory, globals_address + number - 0x10);
+            } else if (0x10 <= number) { // globals = 0x10..0xff
+                return Proxy(memory, globals_address + number - 0x10u);
             } else {
                 throw Exception(); // dead code, should never reach (all values covered)
             }
