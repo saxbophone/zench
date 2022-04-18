@@ -51,6 +51,11 @@ namespace com::saxbophone::zench {
             return "Invalid story file";
         }
     };
+    class UnimplementedInstructionException : public Exception {
+        const char* what() const noexcept {
+            return "Unimplemented instruction encountered";
+        }
+    };
 
     extern const std::string VERSION;
     extern const std::string VERSION_DESCRIPTION;

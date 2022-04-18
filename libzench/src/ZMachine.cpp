@@ -127,12 +127,30 @@ namespace com::saxbophone::zench {
         Word& local_variable(Byte number);
         // TODO: local stack access/manipulation
 
+        void opcode_call(const Instruction& instruction) {}
+
+        void opcode_ret(const Instruction& instruction) {}
+
+        void opcode_jump(const Instruction& instruction) {}
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
-        void print_next_instruction() {
+        void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
             std::cout << instruction.to_string();
             std::cin.get();
+            // XXX: this branching works for now when only 3 opcodes are implemented
+            if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
+                return this->opcode_call(instruction);
+            } else if (instruction.category == Instruction::Category::_1OP) {
+                if (instruction.opcode == 0xb) { // ret
+                    return this->opcode_ret(instruction);
+                } else if (instruction.opcode == 0xc) { // jump
+                    return this->opcode_jump(instruction);
+                }
+            }
+            // default:
+            throw UnimplementedInstructionException();
         }
     };
 
@@ -169,7 +187,6 @@ namespace com::saxbophone::zench {
     }
 
     void ZMachine::execute() {
-        // XXX: debug
-        this->_impl->print_next_instruction();
+        this->_impl->execute_next_instruction();
     }
 }
