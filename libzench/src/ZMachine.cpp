@@ -4,18 +4,19 @@
  * <Copyright information goes here>
  */
 
-#include <cstddef>   // size_t
+#include <cstddef>    // size_t
 
-#include <algorithm> // clamp
-#include <bitset>    // bitset
-#include <deque>     // deque
-#include <iostream>  // XXX: debug
-#include <istream>   // istream
-#include <iterator>  // istreambuf_iterator
-#include <memory>    // unique_ptr
-#include <optional>  // optional
-#include <span>      // span
-#include <vector>    // vector
+#include <algorithm>  // clamp
+#include <bitset>     // bitset
+#include <deque>      // deque
+#include <functional> // reference_wrapper
+#include <iostream>   // XXX: debug
+#include <istream>    // istream
+#include <iterator>   // istreambuf_iterator
+#include <memory>     // unique_ptr
+#include <optional>   // optional
+#include <span>       // span
+#include <vector>     // vector
 
 #include <zench/zench.hpp>
 #include <zench/ZMachine.hpp>
@@ -46,22 +47,33 @@ namespace com::saxbophone::zench {
         private:
             std::span<Byte> _memory;
             std::size_t _base_addr;
+            std::optional<std::reference_wrapper<Word>> _word;
         public:
+            Proxy(Word& word) : _word(word) {}
+
             Proxy(std::span<Byte> memory, std::size_t base_addr)
               : _memory(memory)
               , _base_addr(base_addr)
               {}
 
             Proxy& operator=(Word w) {
-                this->_memory[this->_base_addr] = w >> 8;
-                this->_memory[this->_base_addr + 1] = w & 0x00ff;
+                if (not this->_word) {
+                    this->_memory[this->_base_addr] = w >> 8;
+                    this->_memory[this->_base_addr + 1] = w & 0x00ff;
+                } else {
+                    this->_word = w;
+                }
                 return *this;
             }
 
             operator Word() const {
-                return
-                    (this->_memory[this->_base_addr] << 8) +
-                    this->_memory[this->_base_addr + 1];
+                if (not this->_word) {
+                    return
+                        (this->_memory[this->_base_addr] << 8) +
+                        this->_memory[this->_base_addr + 1];
+                } else {
+                    return this->_word.value();
+                }
             }
         };
 
@@ -75,6 +87,8 @@ namespace com::saxbophone::zench {
         ByteAddress static_memory_begin; // derived from header
         ByteAddress static_memory_end; // we have to work this out
         ByteAddress high_memory_begin; // "high memory mark", derived from header
+
+        ByteAddress globals_address; // global variables start here
 
         Address pc = 0x000000; // program counter
         /*
@@ -131,6 +145,8 @@ namespace com::saxbophone::zench {
             if (high_memory_begin < static_memory_begin) {
                 throw InvalidStoryFileException();
             }
+            // global variables base address is given in Word 6 (the 6th Word)
+            globals_address = this->load_word(0x0a);
         }
         // loads the rest of the file after header has been loaded
         void load_remaining(std::istream& story_file) {
@@ -153,12 +169,16 @@ namespace com::saxbophone::zench {
             writeable_memory = std::span<Byte>{memory}.subspan(0, static_memory_begin);
             readable_memory = std::span<Byte>{memory}.subspan(0, static_memory_end - 1);
         }
-        // NOTE: we'll need a fancier version of this in the future, one that
-        // returns some special reference-type to Word, allows reading from
-        // 2 bytes out of memory that make up a word, and writing back to it
-        // as if it's a word (but the actual bytes are written instead!)
-        Word get_variable(Byte number) {
-            return memory[0]; // XXX: bad bad bad! sending the version number!
+        // NOTE: this doesn't handle access to the stack pointer
+        Proxy get_variable(Byte number) {
+            if (0x01 <= number and number <= 0x0f) { // locals
+                return Proxy(this->call_stack.back().local_variables[number - 1]);
+            } else if (0x10 <= number and number <= 0xff) { // globals
+                return Proxy(memory, globals_address + number);
+            } else {
+                throw Exception(); // invalid variable access attempted!
+            }
+
         }
         // TODO: local stack access/manipulation
 
@@ -195,7 +215,7 @@ namespace com::saxbophone::zench {
             // XXX: handle special case: call address 0 returns false (0)
             if (routine_address == 0) {
                 // TODO: needs access to local and global variables!
-                // variable(instruction.store_variable) = 0;
+                get_variable(instruction.store_variable.value()) = 0;
                 return;
             }
             Byte args_count = (Byte)(instruction.operands.size() - 1);
