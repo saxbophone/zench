@@ -42,6 +42,29 @@ namespace com::saxbophone::zench {
               {}
         };
 
+        class Proxy {
+        private:
+            std::span<Byte> _memory;
+            std::size_t _base_addr;
+        public:
+            Proxy(std::span<Byte> memory, std::size_t base_addr)
+              : _memory(memory)
+              , _base_addr(base_addr)
+              {}
+
+            Proxy& operator=(Word w) {
+                this->_memory[this->_base_addr] = w >> 8;
+                this->_memory[this->_base_addr + 1] = w & 0x00ff;
+                return *this;
+            }
+
+            operator Word() const {
+                return
+                    (this->_memory[this->_base_addr] << 8) +
+                    this->_memory[this->_base_addr + 1];
+            }
+        };
+
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
 
@@ -82,10 +105,9 @@ namespace com::saxbophone::zench {
 
         ZMachineImpl(ZMachine& vm) : parent(vm) {}
 
-        // TODO: create a WordDelegate class which can refer to the bytes its
-        // made up of and write back to them when =operator is used on it
-        Word load_word(Address address) {
-            return (memory[address] << 8) + memory[address + 1];
+        // returning a Proxy for the word allows read-write of Words into memory Bytes!
+        Proxy load_word(Address address) {
+            return Proxy(memory, address);
         }
         // loads file header only
         void load_header(std::istream& story_file) {
