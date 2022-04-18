@@ -176,7 +176,7 @@ namespace com::saxbophone::zench {
                 // variable(instruction.store_variable) = 0;
                 return;
             }
-            Byte args_count = instruction.operands.size() - 1;
+            Byte args_count = (Byte)(instruction.operands.size() - 1);
             Byte locals_count = this->memory[routine_address];
             StackFrame routine{
                 this->pc, // return address, i.e. the byte after this call instruction
