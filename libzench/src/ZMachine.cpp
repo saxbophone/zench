@@ -179,7 +179,26 @@ namespace com::saxbophone::zench {
             this->pc = routine_address + 1 + locals_count * 2; // start execution from end of routine header
         }
 
-        void opcode_ret(const Instruction& instruction) {}
+        void opcode_ret(const Instruction& instruction) {
+            // must have 1 operand only!
+            if (instruction.operands.size() != 1) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // preserve return value variable number
+            Byte store_variable = this->call_stack.back().result_ref;
+            // move pc to return address
+            this->pc = this->call_stack.back().return_pc;
+            // pop the stack
+            this->call_stack.pop_back();
+            // set result variable
+            auto operand = instruction.operands[0];
+            // TODO: needs access to local and global variables!
+            if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
+                // variable(store_variable) = operand.word;
+            } else {
+                // variable(store_variable) = operand.byte;
+            }
+        }
 
         void opcode_jump(const Instruction& instruction) {}
 
@@ -187,7 +206,7 @@ namespace com::saxbophone::zench {
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
-            std::cout << instruction.to_string();
+            std::cout << std::string(this->call_stack.size() - 1, '>') << instruction.to_string();
             // XXX: this branching works for now when only 3 opcodes are implemented
             if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
                 return this->opcode_call(instruction);
