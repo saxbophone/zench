@@ -27,10 +27,19 @@ namespace com::saxbophone::zench {
     public:
         struct StackFrame {
             Address return_pc; // address to return to from this routine
-            std::optional<Byte> result_ref; // variable to store result in, if any
-            std::bitset<7> arguments_supplied;
+            Byte result_ref; // variable to store result in, if any
+            std::size_t argument_count; // number of arguments passed to this routine
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
             std::deque<Word> local_stack; // the "inner" stack directly accessible to routine
+
+            StackFrame() {}
+
+            StackFrame(Address return_pc, Byte result_ref, std::size_t argument_count, std::size_t locals_count)
+              : return_pc(return_pc)
+              , result_ref(result_ref) 
+              , argument_count(argument_count)
+              , local_variables(locals_count)
+              {}
         };
 
         static constexpr std::size_t HEADER_SIZE = 64;
@@ -75,7 +84,7 @@ namespace com::saxbophone::zench {
 
         // TODO: create a WordDelegate class which can refer to the bytes its
         // made up of and write back to them when =operator is used on it
-        Word load_word(ByteAddress address) {
+        Word load_word(Address address) {
             return (memory[address] << 8) + memory[address + 1];
         }
         // loads file header only
@@ -127,7 +136,48 @@ namespace com::saxbophone::zench {
         Word& local_variable(Byte number);
         // TODO: local stack access/manipulation
 
-        void opcode_call(const Instruction& instruction) {}
+        static Address expand_packed_address(PackedAddress packed) {
+            return 2 * packed; // XXX: version 1..3 only
+        }
+
+        void opcode_call(const Instruction& instruction) {
+            // must have 1..4 operands --routine address + 0..3 arguments
+            if (not (0 < instruction.operands.size() and instruction.operands.size() <= 4)) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // construct a new StackFrame for this routine, populated appropriately
+            Address routine_address = expand_packed_address(instruction.operands[0].word);
+            // XXX: handle special case: call address 0 returns false (0)
+            if (routine_address == 0) {
+                // TODO: needs access to local and global variables!
+                // variable(instruction.store_variable) = 0;
+                return;
+            }
+            std::size_t args_count = instruction.operands.size() - 1;
+            std::size_t locals_count = this->memory[routine_address];
+            StackFrame routine{
+                this->pc, // return address, i.e. the byte after this call instruction
+                instruction.store_variable.value(),
+                args_count,
+                locals_count
+            };
+            // populate local variables
+            for (std::size_t l = 0; l < locals_count; l++) {
+                routine.local_variables[l] = this->load_word(routine_address + l * 2);
+            }
+            // now, write in any arguments to local variables, but stop when the range of either is exceeded
+            for (std::size_t a = 0; a < locals_count and a < args_count; a++) {
+                auto operand = instruction.operands[1 + a];
+                if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
+                    routine.local_variables[a] = operand.word;
+                } else {
+                    routine.local_variables[a] = operand.byte;
+                }
+            }
+            // finally, just push the new StackFrame to the call stack and move PC to new routine
+            this->call_stack.push_back(routine);
+            this->pc = routine_address + 1 + locals_count * 2; // start execution from end of routine header
+        }
 
         void opcode_ret(const Instruction& instruction) {}
 
@@ -138,7 +188,6 @@ namespace com::saxbophone::zench {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
             std::cout << instruction.to_string();
-            std::cin.get();
             // XXX: this branching works for now when only 3 opcodes are implemented
             if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
                 return this->opcode_call(instruction);
@@ -150,7 +199,9 @@ namespace com::saxbophone::zench {
                 }
             }
             // default:
-            throw UnimplementedInstructionException();
+            // XXX: no throw for now, will throw later on unimplemented instructions
+            std::cout << " [WARN]: Instruction not implemented";
+            // throw UnimplementedInstructionException();
         }
     };
 
@@ -188,5 +239,6 @@ namespace com::saxbophone::zench {
 
     void ZMachine::execute() {
         this->_impl->execute_next_instruction();
+        std::cin.get();
     }
 }

@@ -466,7 +466,7 @@ namespace com::saxbophone::zench {
             default:
                 data << "????";
             }
-            data << " " << bytecode_string();
+            // data << " " << bytecode_string();
             return data.str();
         }
 

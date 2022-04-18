@@ -29,6 +29,7 @@ namespace com::saxbophone::zench {
     using Address = std::uint32_t;
     using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
     using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
+    using PackedAddress = std::uint16_t; // packed address for routines and strings
     // Z-machine string stuff
     using ZChar = Byte;
 
@@ -54,6 +55,11 @@ namespace com::saxbophone::zench {
     class UnimplementedInstructionException : public Exception {
         const char* what() const noexcept {
             return "Unimplemented instruction encountered";
+        }
+    };
+    class WrongNumberOfInstructionOperandsException : public Exception {
+        const char* what() const noexcept {
+            return "Wrong number of operands given to instruction";
         }
     };
 
