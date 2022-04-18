@@ -131,9 +131,13 @@ namespace com::saxbophone::zench {
             writeable_memory = std::span<Byte>{memory}.subspan(0, static_memory_begin);
             readable_memory = std::span<Byte>{memory}.subspan(0, static_memory_end - 1);
         }
-        // TODO: consider whether these two functions should be merged
-        Word& global_variable(Byte number);
-        Word& local_variable(Byte number);
+        // NOTE: we'll need a fancier version of this in the future, one that
+        // returns some special reference-type to Word, allows reading from
+        // 2 bytes out of memory that make up a word, and writing back to it
+        // as if it's a word (but the actual bytes are written instead!)
+        Word get_variable(Byte number) {
+            return memory[0]; // XXX: bad bad bad! sending the version number!
+        }
         // TODO: local stack access/manipulation
 
         static Address expand_packed_address(PackedAddress packed) {
@@ -152,7 +156,8 @@ namespace com::saxbophone::zench {
             case Instruction::OperandType::VARIABLE:
                 // TODO: needs access to local and global variables!
                 // return variable(operand.byte);
-                return 0x7f; // XXX: dummy value
+                // XXX: dummy version
+                return get_variable(operand.byte);
             default:
                 throw Exception(); // ERROR! type can't be OMITTED!
             }
