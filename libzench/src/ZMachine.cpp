@@ -327,22 +327,22 @@ namespace com::saxbophone::zench {
             this->pc = (Address)((int)this->pc + offset - 2);
         }
 
-        void opcode_rtrue(const Instruction&) {
+        void opcode_rtrue() {
             this->return_value(1); // true=1
         }
 
-        void opcode_rfalse(const Instruction&) {
+        void opcode_rfalse() {
             this->return_value(0); // false=0
         }
 
-        void opcode_print_ret(const Instruction& instruction) {
+        void opcode_print_ret() {
             // TODO: print the quoted (literal) Z-str
             // TODO: print a newline
             // return true
-            this->opcode_rtrue(instruction);
+            this->opcode_rtrue();
         }
 
-        void opcode_ret_popped(const Instruction&) {
+        void opcode_ret_popped() {
             // pop top of stack and return that
             this->return_value(get_variable(0x00)); // SP = 0x00
         }
@@ -363,13 +363,13 @@ namespace com::saxbophone::zench {
                 }
             } else if (instruction.category == Instruction::Category::_0OP) {
                 if (instruction.opcode == 0x0) { // rtrue
-                    return this->opcode_rtrue(instruction);
+                    return this->opcode_rtrue();
                 } else if (instruction.opcode == 0x1) { // rfalse
-                    return this->opcode_rfalse(instruction);
+                    return this->opcode_rfalse();
                 } else if (instruction.opcode == 0x3) { // print_ret
-                    return this->opcode_print_ret(instruction);
+                    return this->opcode_print_ret();
                 } else if (instruction.opcode == 0x8) { // ret_popped
-                    return this->opcode_ret_popped(instruction);
+                    return this->opcode_ret_popped();
                 }
             }
             // default:
