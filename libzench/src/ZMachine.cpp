@@ -300,11 +300,8 @@ namespace com::saxbophone::zench {
             this->pc = routine_address + 1 + locals_count * 2; // start execution from end of routine header
         }
 
-        void opcode_ret(const Instruction& instruction) {
-            // must have 1 operand only!
-            if (instruction.operands.size() != 1) {
-                throw WrongNumberOfInstructionOperandsException();
-            }
+        // this executes the common "return value and pop the call stack" part of all return instructions
+        void return_value(Word value) {
             // preserve return value variable number
             Byte store_variable = this->call_stack.back().result_ref;
             // move pc to return address
@@ -312,13 +309,16 @@ namespace com::saxbophone::zench {
             // pop the stack
             this->call_stack.pop_back();
             // set result variable
-            auto operand = instruction.operands[0];
-            // access local and global variables
-            if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                get_variable(store_variable) = operand.word;
-            } else {
-                get_variable(store_variable) = operand.byte;
+            get_variable(store_variable) = value;
+        }
+
+        void opcode_ret(const Instruction& instruction) {
+            // must have 1 operand only!
+            if (instruction.operands.size() != 1) {
+                throw WrongNumberOfInstructionOperandsException();
             }
+            // return operand value
+            this->return_value(this->operand_value(instruction.operands[0]));
         }
 
         void opcode_jump(const Instruction& instruction) {
@@ -335,6 +335,14 @@ namespace com::saxbophone::zench {
             this->pc = (Address)((int)this->pc + offset - 2);
         }
 
+        void opcode_rtrue(const Instruction& instruction) {}
+
+        void opcode_rfalse(const Instruction& instruction) {}
+
+        void opcode_print_ret(const Instruction& instruction) {}
+
+        void opcode_ret_popped(const Instruction& instruction) {}
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
@@ -348,6 +356,16 @@ namespace com::saxbophone::zench {
                     return this->opcode_ret(instruction);
                 } else if (instruction.opcode == 0xc) { // jump
                     return this->opcode_jump(instruction);
+                }
+            } else if (instruction.category == Instruction::Category::_0OP) {
+                if (instruction.opcode == 0x0) { // rtrue
+                    return this->opcode_rtrue(instruction);
+                } else if (instruction.opcode == 0x1) { // rfalse
+                    return this->opcode_rfalse(instruction);
+                } else if (instruction.opcode == 0x3) { // print_ret
+                    return this->opcode_print_ret(instruction);
+                } else if (instruction.opcode == 0x8) { // ret_popped
+                    return this->opcode_ret_popped(instruction);
                 }
             }
             // default:
