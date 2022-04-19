@@ -313,19 +313,11 @@ namespace com::saxbophone::zench {
         }
 
         void opcode_ret(const Instruction& instruction) {
-            // must have 1 operand only!
-            if (instruction.operands.size() != 1) { // XXX: over-pedantic, can only have 1 operand anyway
-                throw WrongNumberOfInstructionOperandsException();
-            }
             // return operand value
             this->return_value(this->operand_value(instruction.operands[0]));
         }
 
         void opcode_jump(const Instruction& instruction) {
-            // must have 1 operand only!
-            if (instruction.operands.size() != 1) { // XXX: over-pedantic, can only have 1 operand anyway
-                throw WrongNumberOfInstructionOperandsException();
-            }
             // the jump address is a 2-byte signed offset to apply to the PC
             SWord offset = (SWord)instruction.operands[0].word;
             /*
