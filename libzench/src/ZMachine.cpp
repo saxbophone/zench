@@ -154,8 +154,8 @@ namespace com::saxbophone::zench {
             if (high_memory_begin < static_memory_begin) {
                 throw InvalidStoryFileException();
             }
-            // global variables base address is given in Word 6 (the 6th Word)
-            globals_address = this->load_word(0x0a);
+            // global variables base address is given in Word 6 (the 7th Word)
+            globals_address = this->load_word(0x0c);
         }
         // loads the rest of the file after header has been loaded
         void load_remaining(std::istream& story_file) {
