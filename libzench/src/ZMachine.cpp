@@ -23,6 +23,29 @@
 
 #include "Instruction.hpp"
 
+namespace {
+    /*
+     * Helper function, variadic xor
+     * It works by counting the number of true values and returning true only
+     * if this number is 1.
+     */
+
+    template <typename T>
+    constexpr std::size_t only_one_helper(T t) {
+        return (bool)t;
+    }
+
+    template <typename T, typename... Args>
+    constexpr std::size_t only_one_helper(T t, Args... args) { // recursive variadic function
+        return only_one_helper(t) + only_one_helper(args...);
+    }
+
+    template <typename T, typename... Args>
+    constexpr bool only_one(T t, Args... args) { // recursive variadic function
+        return only_one_helper(t, args...) == 1;
+    }
+}
+
 namespace com::saxbophone::zench {
     class ZMachine::ZMachineImpl {
     public:
@@ -43,25 +66,51 @@ namespace com::saxbophone::zench {
               {}
         };
 
-        class Proxy {
+        /*
+         * VariableProxy allows covenient read/write access to Word-sized
+         * variables that may exist in memory as arrays of Bytes.
+         *
+         * Assignment-operator and cast-to-Word operator are overloaded to allow
+         * reading and writing to them as Words, which then writes the
+         * corresponding Word (or Bytes if stored as two Bytes).
+         *
+         * Three kinds of Variable location are allowed:
+         * - the top of the stack (stack pointer)
+         * - a reference to a specific Word
+         * - a global variable
+         */
+        class VariableProxy {
         private:
+            // for global variables:
             std::span<Byte> _memory;
             std::size_t _base_addr;
+            // for Word references:
             std::optional<std::reference_wrapper<Word>> _word;
+            // for Stack Pointer:
             std::optional<std::reference_wrapper<std::deque<Word>>> _stack;
         public:
-            Proxy(std::deque<Word>& stack) : _stack(stack) {}
-
-            Proxy(Word& word) : _word(word) {}
-
-            Proxy(std::span<Byte> memory, std::size_t base_addr)
+            // init VariableProxy for stack pointer access
+            VariableProxy(std::deque<Word>& stack) : _stack(stack) {}
+            // init VariableProxy for Word reference access
+            VariableProxy(Word& word) : _word(word) {}
+            // init VariableProxy for global variable access
+            VariableProxy(std::span<Byte> memory, std::size_t base_addr)
               : _memory(memory)
               , _base_addr(base_addr)
               {}
-
-            Proxy& operator=(Word w) {
+            // malformed VariableProxy objects have multiple sources set
+            bool is_valid() const {
+                return only_one(_memory.size() != 0, _word, _stack);
+            }
+            // assignment operator writes back to Variable, wherever it's stored
+            VariableProxy& operator=(Word w) {
+                // guard against assignment when malformed
+                if (not this->is_valid()) {
+                    throw Exception();
+                }
                 if (this->_stack) {
-                    this->_stack->get().push_back(w);
+                    // this long-winded access is due to optional<reference-wrapper<Word>>
+                    this->_stack.value().get().push_back(w);
                 } else if (this->_word) {
                     this->_word = w;
                 } else {
@@ -70,11 +119,17 @@ namespace com::saxbophone::zench {
                 }
                 return *this;
             }
-
+            // cast-to-Word operator reads from Variable, wherever it's stored
             operator Word() const {
+                // guard against value access when malformed
+                if (not this->is_valid()) {
+                    throw Exception();
+                }
                 if (this->_stack) {
-                    Word value = this->_stack->get().back();
-                    this->_stack->get().pop_back();
+                    // this long-winded access is due to optional<reference-wrapper<Word>>
+                    auto stack = this->_stack.value().get();
+                    Word value = stack.back();
+                    stack.pop_back();
                     return value;
                 } else if (this->_word) {
                     return this->_word.value();
@@ -83,6 +138,7 @@ namespace com::saxbophone::zench {
                         (this->_memory[this->_base_addr] << 8) +
                         this->_memory[this->_base_addr + 1];
                 }
+                // XXX: unreachable
             }
         };
 
@@ -128,9 +184,9 @@ namespace com::saxbophone::zench {
 
         ZMachineImpl(ZMachine& vm) : parent(vm) {}
 
-        // returning a Proxy for the word allows read-write of Words into memory Bytes!
-        Proxy load_word(Address address) {
-            return Proxy(memory, address);
+        // returning a VariableProxy for the word allows read-write of Words into memory Bytes!
+        VariableProxy load_word(Address address) {
+            return VariableProxy(memory, address);
         }
         // loads file header only
         void load_header(std::istream& story_file) {
@@ -178,19 +234,19 @@ namespace com::saxbophone::zench {
             writeable_memory = std::span<Byte>{memory}.subspan(0, static_memory_begin);
             readable_memory = std::span<Byte>{memory}.subspan(0, static_memory_end - 1);
         }
-        // NOTE: this doesn't handle access to the stack pointer
-        Proxy get_variable(Byte number) {
+        // use VariableProxy object to get a read/write handle to the variable
+        VariableProxy get_variable(Byte number) {
             if (number == 0x00) { // stack pointer
-                return Proxy(this->call_stack.back().local_stack);
+                return VariableProxy(this->call_stack.back().local_stack);
             } else if (0x01 <= number and number <= 0x0f) { // locals = 0x01..0x0f
-                return Proxy(this->call_stack.back().local_variables[number - 1]);
+                return VariableProxy(this->call_stack.back().local_variables[number - 1]);
             } else if (0x10 <= number) { // globals = 0x10..0xff
-                return Proxy(memory, globals_address + number - 0x10u);
+                return VariableProxy(memory, globals_address + number - 0x10u);
             } else {
                 throw Exception(); // dead code, should never reach (all values covered)
             }
         }
-        // TODO: local stack access/manipulation
+        // TODO: local stack manipulation
 
         static Address expand_packed_address(PackedAddress packed) {
             return 2 * packed; // XXX: version 1..3 only
