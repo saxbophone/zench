@@ -4,23 +4,47 @@
  * <Copyright information goes here>
  */
 
-#include <cstddef>   // size_t
+#include <cstddef>    // size_t
 
-#include <algorithm> // clamp
-#include <bitset>    // bitset
-#include <deque>     // deque
-#include <iostream>  // XXX: debug
-#include <istream>   // istream
-#include <iterator>  // istreambuf_iterator
-#include <memory>    // unique_ptr
-#include <optional>  // optional
-#include <span>      // span
-#include <vector>    // vector
+#include <algorithm>  // clamp
+#include <bitset>     // bitset
+#include <deque>      // deque
+#include <functional> // reference_wrapper
+#include <iostream>   // XXX: debug
+#include <istream>    // istream
+#include <iterator>   // istreambuf_iterator
+#include <memory>     // unique_ptr
+#include <optional>   // optional
+#include <span>       // span
+#include <vector>     // vector
 
 #include <zench/zench.hpp>
 #include <zench/ZMachine.hpp>
 
 #include "Instruction.hpp"
+
+namespace {
+    /*
+     * Helper function, variadic xor
+     * It works by counting the number of true values and returning true only
+     * if this number is 1.
+     */
+
+    template <typename T>
+    constexpr std::size_t only_one_helper(T t) {
+        return (bool)t;
+    }
+
+    template <typename T, typename... Args>
+    constexpr std::size_t only_one_helper(T t, Args... args) { // recursive variadic function
+        return only_one_helper(t) + only_one_helper(args...);
+    }
+
+    template <typename T, typename... Args>
+    constexpr bool only_one(T t, Args... args) { // recursive variadic function
+        return only_one_helper(t, args...) == 1;
+    }
+}
 
 namespace com::saxbophone::zench {
     class ZMachine::ZMachineImpl {
@@ -42,6 +66,82 @@ namespace com::saxbophone::zench {
               {}
         };
 
+        /*
+         * VariableProxy allows covenient read/write access to Word-sized
+         * variables that may exist in memory as arrays of Bytes.
+         *
+         * Assignment-operator and cast-to-Word operator are overloaded to allow
+         * reading and writing to them as Words, which then writes the
+         * corresponding Word (or Bytes if stored as two Bytes).
+         *
+         * Three kinds of Variable location are allowed:
+         * - the top of the stack (stack pointer)
+         * - a reference to a specific Word
+         * - a global variable
+         */
+        class VariableProxy {
+        private:
+            // for global variables:
+            std::span<Byte> _memory;
+            std::size_t _base_addr;
+            // for Word references:
+            std::optional<std::reference_wrapper<Word>> _word;
+            // for Stack Pointer:
+            std::optional<std::reference_wrapper<std::deque<Word>>> _stack;
+        public:
+            // init VariableProxy for stack pointer access
+            VariableProxy(std::deque<Word>& stack) : _stack(stack) {}
+            // init VariableProxy for Word reference access
+            VariableProxy(Word& word) : _word(word) {}
+            // init VariableProxy for global variable access
+            VariableProxy(std::span<Byte> memory, std::size_t base_addr)
+              : _memory(memory)
+              , _base_addr(base_addr)
+              {}
+            // malformed VariableProxy objects have multiple sources set
+            bool is_valid() const {
+                return only_one(_memory.size() != 0, _word, _stack);
+            }
+            // assignment operator writes back to Variable, wherever it's stored
+            VariableProxy& operator=(Word w) {
+                // guard against assignment when malformed
+                if (not this->is_valid()) {
+                    throw Exception();
+                }
+                if (this->_stack) {
+                    // this long-winded access is due to optional<reference-wrapper<Word>>
+                    this->_stack.value().get().push_back(w);
+                } else if (this->_word) {
+                    this->_word = w;
+                } else {
+                    this->_memory[this->_base_addr] = w >> 8;
+                    this->_memory[this->_base_addr + 1] = w & 0x00ff;
+                }
+                return *this;
+            }
+            // cast-to-Word operator reads from Variable, wherever it's stored
+            operator Word() const {
+                // guard against value access when malformed
+                if (not this->is_valid()) {
+                    throw Exception();
+                }
+                if (this->_stack) {
+                    // this long-winded access is due to optional<reference-wrapper<Word>>
+                    auto stack = this->_stack.value().get();
+                    Word value = stack.back();
+                    stack.pop_back();
+                    return value;
+                } else if (this->_word) {
+                    return this->_word.value();
+                } else {
+                    return
+                        (this->_memory[this->_base_addr] << 8) +
+                        this->_memory[this->_base_addr + 1];
+                }
+                // XXX: unreachable
+            }
+        };
+
         static constexpr std::size_t HEADER_SIZE = 64;
         static constexpr std::size_t STORY_FILE_MAX_SIZE = 128 * 1024; // Version 1-3: 128KiB
 
@@ -52,6 +152,8 @@ namespace com::saxbophone::zench {
         ByteAddress static_memory_begin; // derived from header
         ByteAddress static_memory_end; // we have to work this out
         ByteAddress high_memory_begin; // "high memory mark", derived from header
+
+        ByteAddress globals_address; // global variables start here
 
         Address pc = 0x000000; // program counter
         /*
@@ -82,10 +184,9 @@ namespace com::saxbophone::zench {
 
         ZMachineImpl(ZMachine& vm) : parent(vm) {}
 
-        // TODO: create a WordDelegate class which can refer to the bytes its
-        // made up of and write back to them when =operator is used on it
-        Word load_word(Address address) {
-            return (memory[address] << 8) + memory[address + 1];
+        // returning a VariableProxy for the word allows read-write of Words into memory Bytes!
+        VariableProxy load_word(Address address) {
+            return VariableProxy(memory, address);
         }
         // loads file header only
         void load_header(std::istream& story_file) {
@@ -109,6 +210,8 @@ namespace com::saxbophone::zench {
             if (high_memory_begin < static_memory_begin) {
                 throw InvalidStoryFileException();
             }
+            // global variables base address is given in Word 6 (the 7th Word)
+            globals_address = this->load_word(0x0c);
         }
         // loads the rest of the file after header has been loaded
         void load_remaining(std::istream& story_file) {
@@ -131,14 +234,17 @@ namespace com::saxbophone::zench {
             writeable_memory = std::span<Byte>{memory}.subspan(0, static_memory_begin);
             readable_memory = std::span<Byte>{memory}.subspan(0, static_memory_end - 1);
         }
-        // NOTE: we'll need a fancier version of this in the future, one that
-        // returns some special reference-type to Word, allows reading from
-        // 2 bytes out of memory that make up a word, and writing back to it
-        // as if it's a word (but the actual bytes are written instead!)
-        Word get_variable(Byte number) {
-            return memory[0]; // XXX: bad bad bad! sending the version number!
+        // use VariableProxy object to get a read/write handle to the variable
+        VariableProxy get_variable(Byte number) {
+            if (number == 0x00) { // stack pointer
+                return VariableProxy(this->call_stack.back().local_stack);
+            } else if (0x01 <= number and number <= 0x0f) { // locals = 0x01..0x0f
+                return VariableProxy(this->call_stack.back().local_variables[number - 1]);
+            } else { // globals = 0x10..0xff
+                return VariableProxy(memory, globals_address + number - 0x10u);
+            }
         }
-        // TODO: local stack access/manipulation
+        // TODO: local stack manipulation
 
         static Address expand_packed_address(PackedAddress packed) {
             return 2 * packed; // XXX: version 1..3 only
@@ -154,9 +260,6 @@ namespace com::saxbophone::zench {
             case Instruction::OperandType::SMALL_CONSTANT:
                 return operand.byte;
             case Instruction::OperandType::VARIABLE:
-                // TODO: needs access to local and global variables!
-                // return variable(operand.byte);
-                // XXX: dummy version
                 return get_variable(operand.byte);
             default:
                 throw Exception(); // ERROR! type can't be OMITTED!
@@ -170,10 +273,9 @@ namespace com::saxbophone::zench {
             }
             // construct a new StackFrame for this routine, populated appropriately
             Address routine_address = expand_packed_address(operand_value(instruction.operands[0]));
-            // XXX: handle special case: call address 0 returns false (0)
+            // handle special case: call address 0 returns false (0)
             if (routine_address == 0) {
-                // TODO: needs access to local and global variables!
-                // variable(instruction.store_variable) = 0;
+                get_variable(instruction.store_variable.value()) = 0;
                 return;
             }
             Byte args_count = (Byte)(instruction.operands.size() - 1);
@@ -211,11 +313,11 @@ namespace com::saxbophone::zench {
             this->call_stack.pop_back();
             // set result variable
             auto operand = instruction.operands[0];
-            // TODO: needs access to local and global variables!
+            // access local and global variables
             if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                // variable(store_variable) = operand.word;
+                get_variable(store_variable) = operand.word;
             } else {
-                // variable(store_variable) = operand.byte;
+                get_variable(store_variable) = operand.byte;
             }
         }
 
