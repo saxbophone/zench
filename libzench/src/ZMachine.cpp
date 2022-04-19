@@ -300,11 +300,8 @@ namespace com::saxbophone::zench {
             this->pc = routine_address + 1 + locals_count * 2; // start execution from end of routine header
         }
 
-        void opcode_ret(const Instruction& instruction) {
-            // must have 1 operand only!
-            if (instruction.operands.size() != 1) {
-                throw WrongNumberOfInstructionOperandsException();
-            }
+        // this executes the common "return value and pop the call stack" part of all return instructions
+        void return_value(Word value) {
             // preserve return value variable number
             Byte store_variable = this->call_stack.back().result_ref;
             // move pc to return address
@@ -312,20 +309,15 @@ namespace com::saxbophone::zench {
             // pop the stack
             this->call_stack.pop_back();
             // set result variable
-            auto operand = instruction.operands[0];
-            // access local and global variables
-            if (operand.type == Instruction::OperandType::LARGE_CONSTANT) {
-                get_variable(store_variable) = operand.word;
-            } else {
-                get_variable(store_variable) = operand.byte;
-            }
+            get_variable(store_variable) = value;
+        }
+
+        void opcode_ret(const Instruction& instruction) {
+            // return operand value
+            this->return_value(this->operand_value(instruction.operands[0]));
         }
 
         void opcode_jump(const Instruction& instruction) {
-            // must have 1 operand only!
-            if (instruction.operands.size() != 1) {
-                throw WrongNumberOfInstructionOperandsException();
-            }
             // the jump address is a 2-byte signed offset to apply to the PC
             SWord offset = (SWord)instruction.operands[0].word;
             /*
@@ -333,6 +325,26 @@ namespace com::saxbophone::zench {
              * Address after instruction + Offset - 2
              */
             this->pc = (Address)((int)this->pc + offset - 2);
+        }
+
+        void opcode_rtrue() {
+            this->return_value(1); // true=1
+        }
+
+        void opcode_rfalse() {
+            this->return_value(0); // false=0
+        }
+
+        void opcode_print_ret() {
+            // TODO: print the quoted (literal) Z-str
+            // TODO: print a newline
+            // return true
+            this->opcode_rtrue();
+        }
+
+        void opcode_ret_popped() {
+            // pop top of stack and return that
+            this->return_value(get_variable(0x00)); // SP = 0x00
         }
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
@@ -348,6 +360,16 @@ namespace com::saxbophone::zench {
                     return this->opcode_ret(instruction);
                 } else if (instruction.opcode == 0xc) { // jump
                     return this->opcode_jump(instruction);
+                }
+            } else if (instruction.category == Instruction::Category::_0OP) {
+                if (instruction.opcode == 0x0) { // rtrue
+                    return this->opcode_rtrue();
+                } else if (instruction.opcode == 0x1) { // rfalse
+                    return this->opcode_rfalse();
+                } else if (instruction.opcode == 0x3) { // print_ret
+                    return this->opcode_print_ret();
+                } else if (instruction.opcode == 0x8) { // ret_popped
+                    return this->opcode_ret_popped();
                 }
             }
             // default:
