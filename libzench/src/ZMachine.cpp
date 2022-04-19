@@ -314,7 +314,7 @@ namespace com::saxbophone::zench {
 
         void opcode_ret(const Instruction& instruction) {
             // must have 1 operand only!
-            if (instruction.operands.size() != 1) {
+            if (instruction.operands.size() != 1) { // XXX: over-pedantic, can only have 1 operand anyway
                 throw WrongNumberOfInstructionOperandsException();
             }
             // return operand value
@@ -323,7 +323,7 @@ namespace com::saxbophone::zench {
 
         void opcode_jump(const Instruction& instruction) {
             // must have 1 operand only!
-            if (instruction.operands.size() != 1) {
+            if (instruction.operands.size() != 1) { // XXX: over-pedantic, can only have 1 operand anyway
                 throw WrongNumberOfInstructionOperandsException();
             }
             // the jump address is a 2-byte signed offset to apply to the PC
@@ -335,13 +335,25 @@ namespace com::saxbophone::zench {
             this->pc = (Address)((int)this->pc + offset - 2);
         }
 
-        void opcode_rtrue(const Instruction& instruction) {}
+        void opcode_rtrue(const Instruction&) {
+            this->return_value(1); // true=1
+        }
 
-        void opcode_rfalse(const Instruction& instruction) {}
+        void opcode_rfalse(const Instruction&) {
+            this->return_value(0); // false=0
+        }
 
-        void opcode_print_ret(const Instruction& instruction) {}
+        void opcode_print_ret(const Instruction& instruction) {
+            // TODO: print the quoted (literal) Z-str
+            // TODO: print a newline
+            // return true
+            this->opcode_rtrue(instruction);
+        }
 
-        void opcode_ret_popped(const Instruction& instruction) {}
+        void opcode_ret_popped(const Instruction&) {
+            // pop top of stack and return that
+            this->return_value(get_variable(0x00)); // SP = 0x00
+        }
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
