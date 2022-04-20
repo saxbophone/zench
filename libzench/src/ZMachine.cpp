@@ -55,7 +55,7 @@ namespace com::saxbophone::zench {
             std::size_t argument_count; // number of arguments passed to this routine
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
             // XXX: dummy values are on the stack to allow testing before pushing is implemented
-            std::deque<Word> local_stack = {0xFEED, 0xCAFE, 0xBABE}; // the "inner" stack directly accessible to routine
+            std::deque<Word> local_stack; // the "inner" stack directly accessible to routine
 
             StackFrame() {}
 
@@ -415,6 +415,15 @@ namespace com::saxbophone::zench {
             }
         }
 
+        void opcode_jz(const Instruction& instruction) {
+            // jump if zero (also obey on-true/on-false specifier)
+            bool is_zero = this->operand_value(instruction.operands[0]) == 0;
+            if (is_zero == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                return this->jump_with_offset(branch_offset);
+            }
+        }
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
@@ -436,6 +445,8 @@ namespace com::saxbophone::zench {
                     return this->opcode_ret(instruction);
                 } else if (instruction.opcode == 0xc) { // jump
                     return this->opcode_jump(instruction);
+                } else if (instruction.opcode == 0x0) { // jz
+                    return this->opcode_jz(instruction);
                 }
             } else if (instruction.category == Instruction::Category::_0OP) {
                 if (instruction.opcode == 0x0) { // rtrue
