@@ -9,7 +9,7 @@
 #include <algorithm>  // clamp
 #include <bitset>     // bitset
 #include <deque>      // deque
-#include <functional> // reference_wrapper
+#include <functional> // reference_wrapper, equal_to, less, greater
 #include <iostream>   // XXX: debug
 #include <istream>    // istream
 #include <iterator>   // istreambuf_iterator
@@ -347,6 +347,82 @@ namespace com::saxbophone::zench {
             this->return_value(get_variable(0x00)); // SP = 0x00
         }
 
+        // helper method for all conditional-jump opcodes
+        // NOTE: can't be used with unconditional jump as that has no special
+        // meaning for offsets 0 and 1, unlike conditional jumps, which return
+        // true or false in those cases.
+        void jump_with_offset(SWord offset) {
+            // special cases are offsets 0 and 1, handle them first
+            switch (offset) {
+            // XXX: could optimise into this->return_value(offset) because 0=false and 1=true
+            case 0:
+                return this->opcode_rfalse(); // return false from current routine
+            case 1:
+                return this->opcode_rtrue(); // return true from current routine
+            default: // otherwise
+                // new address = address after branch data + offset - 2
+                // pc is already at "address after branch data", so thus:
+                this->pc = (Address)((int)this->pc + offset - 2);
+                return;
+            }
+        }
+
+        void opcode_je(const Instruction& instruction) {
+            // je with just 1 operand is not permitted
+            if (instruction.operands.size() < 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // jump if first operand is equal to any subsequent operands
+            bool equal = false;
+            Word first = this->operand_value(instruction.operands[0]);
+            for (std::size_t i = 1; i < instruction.operands.size(); i++) {
+                Word value = this->operand_value(instruction.operands[i]);
+                if (first == value) {
+                    equal = equal or true;
+                    // XXX: clarify whether stack pointer should always be popped
+                    // if an argument, even if it's not needed because equality
+                    // to a previous operand was confirmed before it was reached
+                    // if it doesn't need to always be popped if never reached,
+                    // we can put back in the break, otherwise, we need to check
+                    // every operand even if we know we already need to jump
+                    // (otherwise, stack will sometimes be popped, sometimes not)
+                    // break;
+                }
+            }
+            // obey branch instruction's on-true/on-false specifier
+            if (equal == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                return this->jump_with_offset(branch_offset);
+            }
+        }
+
+        // executes conditional jump for jump-if-less/jump-if-greater
+        // use Compare to specify which kind of comparison to make
+        template <class Compare>
+        void conditional_jump(const Instruction& instruction) {
+            // must have 2 operands only
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // comparison is *signed*
+            SWord lhs = (SWord)this->operand_value(instruction.operands[0]);
+            SWord rhs = (SWord)this->operand_value(instruction.operands[1]);
+            // obey branch instruction's on-true/on-false specifier
+            if (Compare{}(lhs, rhs) == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                return this->jump_with_offset(branch_offset);
+            }
+        }
+
+        void opcode_jz(const Instruction& instruction) {
+            // jump if zero (also obey on-true/on-false specifier)
+            bool is_zero = this->operand_value(instruction.operands[0]) == 0;
+            if (is_zero == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                return this->jump_with_offset(branch_offset);
+            }
+        }
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
@@ -355,11 +431,21 @@ namespace com::saxbophone::zench {
             // XXX: this branching works for now when only 3 opcodes are implemented
             if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
                 return this->opcode_call(instruction);
+            } else if (instruction.category == Instruction::Category::_2OP) {
+                if (instruction.opcode == 0x1) { // je
+                    return this->opcode_je(instruction);
+                } else if (instruction.opcode == 0x2) { // jl
+                    return this->conditional_jump<std::less<SWord>>(instruction);
+                } else if (instruction.opcode == 0x3) { // jg
+                    return this->conditional_jump<std::greater<SWord>>(instruction);
+                }
             } else if (instruction.category == Instruction::Category::_1OP) {
                 if (instruction.opcode == 0xb) { // ret
                     return this->opcode_ret(instruction);
                 } else if (instruction.opcode == 0xc) { // jump
                     return this->opcode_jump(instruction);
+                } else if (instruction.opcode == 0x0) { // jz
+                    return this->opcode_jz(instruction);
                 }
             } else if (instruction.category == Instruction::Category::_0OP) {
                 if (instruction.opcode == 0x0) { // rtrue
