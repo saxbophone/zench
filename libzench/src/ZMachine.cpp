@@ -348,18 +348,38 @@ namespace com::saxbophone::zench {
             this->return_value(get_variable(0x00)); // SP = 0x00
         }
 
+        // helper method for all conditional-jump opcodes
+        // NOTE: can't be used with unconditional jump as that has no special
+        // meaning for offsets 0 and 1, unlike conditional jumps, which return
+        // true or false in those cases.
+        void jump_with_offset(SWord offset) {
+            // special cases are offsets 0 and 1, handle them first
+            switch (offset) {
+            // XXX: could optimise into this->return_value(offset) because 0=false and 1=true
+            case 0:
+                return this->opcode_rfalse(); // return false from current routine
+            case 1:
+                return this->opcode_rtrue(); // return true from current routine
+            default: // otherwise
+                // new address = address after branch data + offset - 2
+                // pc is already at "address after branch data", so thus:
+                this->pc = (Address)((int)this->pc + offset - 2);
+                return;
+            }
+        }
+
         void opcode_je(const Instruction& instruction) {
             // je with just 1 operand is not permitted
             if (instruction.operands.size() < 2) {
                 throw WrongNumberOfInstructionOperandsException();
             }
             // jump if first operand is equal to any subsequent operands
-            bool do_jump = false;
+            bool equal = false;
             Word first = this->operand_value(instruction.operands[0]);
             for (std::size_t i = 1; i < instruction.operands.size(); i++) {
                 Word value = this->operand_value(instruction.operands[i]);
                 if (first == value) {
-                    do_jump = do_jump or true;
+                    equal = equal or true;
                     // XXX: clarify whether stack pointer should always be popped
                     // if an argument, even if it's not needed because equality
                     // to a previous operand was confirmed before it was reached
@@ -371,21 +391,9 @@ namespace com::saxbophone::zench {
                 }
             }
             // obey branch instruction's on-true/on-false specifier
-            if (do_jump == instruction.branch->on_true) {
+            if (equal == instruction.branch->on_true) {
                 SWord branch_offset = instruction.branch->offset;
-                // special cases are offsets 0 and 1, handle them first
-                switch (branch_offset) {
-                // XXX: could optimise into this->return_value(offset) because 0=false and 1=true
-                case 0:
-                    return this->opcode_rfalse(); // return false from current routine
-                case 1:
-                    return this->opcode_rtrue(); // return true from current routine
-                default: // otherwise
-                    // new address = address after branch data + offset - 2
-                    // pc is already at "address after branch data", so thus:
-                    this->pc = (Address)((int)this->pc + branch_offset - 2);
-                    return;
-                }
+                return this->jump_with_offset(branch_offset);
             }
         }
 
@@ -396,6 +404,14 @@ namespace com::saxbophone::zench {
             // must have 2 operands only
             if (instruction.operands.size() != 2) {
                 throw WrongNumberOfInstructionOperandsException();
+            }
+            // comparison is *signed*
+            SWord lhs = (SWord)this->operand_value(instruction.operands[0]);
+            SWord rhs = (SWord)this->operand_value(instruction.operands[1]);
+            // obey branch instruction's on-true/on-false specifier
+            if (Compare{}(lhs, rhs) == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                return this->jump_with_offset(branch_offset);
             }
         }
 
