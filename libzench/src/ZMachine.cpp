@@ -54,7 +54,6 @@ namespace com::saxbophone::zench {
             Byte result_ref; // variable to store result in, if any
             std::size_t argument_count; // number of arguments passed to this routine
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
-            // XXX: dummy values are on the stack to allow testing before pushing is implemented
             std::deque<Word> local_stack; // the "inner" stack directly accessible to routine
 
             StackFrame() {}
