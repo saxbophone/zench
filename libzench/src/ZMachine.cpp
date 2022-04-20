@@ -9,7 +9,7 @@
 #include <algorithm>  // clamp
 #include <bitset>     // bitset
 #include <deque>      // deque
-#include <functional> // reference_wrapper
+#include <functional> // reference_wrapper, equal_to, less, greater
 #include <iostream>   // XXX: debug
 #include <istream>    // istream
 #include <iterator>   // istreambuf_iterator
@@ -54,7 +54,8 @@ namespace com::saxbophone::zench {
             Byte result_ref; // variable to store result in, if any
             std::size_t argument_count; // number of arguments passed to this routine
             std::vector<Word> local_variables; // current contents of locals --never more than 15 of them
-            std::deque<Word> local_stack; // the "inner" stack directly accessible to routine
+            // XXX: dummy values are on the stack to allow testing before pushing is implemented
+            std::deque<Word> local_stack = {0xFEED, 0xCAFE, 0xBABE}; // the "inner" stack directly accessible to routine
 
             StackFrame() {}
 
@@ -347,6 +348,57 @@ namespace com::saxbophone::zench {
             this->return_value(get_variable(0x00)); // SP = 0x00
         }
 
+        void opcode_je(const Instruction& instruction) {
+            // je with just 1 operand is not permitted
+            if (instruction.operands.size() < 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // jump if first operand is equal to any subsequent operands
+            bool do_jump = false;
+            Word first = this->operand_value(instruction.operands[0]);
+            for (std::size_t i = 1; i < instruction.operands.size(); i++) {
+                Word value = this->operand_value(instruction.operands[i]);
+                if (first == value) {
+                    do_jump = do_jump or true;
+                    // XXX: clarify whether stack pointer should always be popped
+                    // if an argument, even if it's not needed because equality
+                    // to a previous operand was confirmed before it was reached
+                    // if it doesn't need to always be popped if never reached,
+                    // we can put back in the break, otherwise, we need to check
+                    // every operand even if we know we already need to jump
+                    // (otherwise, stack will sometimes be popped, sometimes not)
+                    // break;
+                }
+            }
+            // obey branch instruction's on-true/on-false specifier
+            if (do_jump == instruction.branch->on_true) {
+                SWord branch_offset = instruction.branch->offset;
+                // special cases are offsets 0 and 1, handle them first
+                switch (branch_offset) {
+                // XXX: could optimise into this->return_value(offset) because 0=false and 1=true
+                case 0:
+                    return this->opcode_rfalse(); // return false from current routine
+                case 1:
+                    return this->opcode_rtrue(); // return true from current routine
+                default: // otherwise
+                    // new address = address after branch data + offset - 2
+                    // pc is already at "address after branch data", so thus:
+                    this->pc = (Address)((int)this->pc + branch_offset - 2);
+                    return;
+                }
+            }
+        }
+
+        // executes conditional jump for jump-if-less/jump-if-greater
+        // use Compare to specify which kind of comparison to make
+        template <class Compare>
+        void conditional_jump(const Instruction& instruction) {
+            // must have 2 operands only
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+        }
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
@@ -355,6 +407,14 @@ namespace com::saxbophone::zench {
             // XXX: this branching works for now when only 3 opcodes are implemented
             if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
                 return this->opcode_call(instruction);
+            } else if (instruction.category == Instruction::Category::_2OP) {
+                if (instruction.opcode == 0x1) { // je
+                    return this->opcode_je(instruction);
+                } else if (instruction.opcode == 0x2) { // jl
+                    return this->conditional_jump<std::less<SWord>>(instruction);
+                } else if (instruction.opcode == 0x3) { // jg
+                    return this->conditional_jump<std::greater<SWord>>(instruction);
+                }
             } else if (instruction.category == Instruction::Category::_1OP) {
                 if (instruction.opcode == 0xb) { // ret
                     return this->opcode_ret(instruction);
