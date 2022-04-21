@@ -266,6 +266,17 @@ namespace com::saxbophone::zench {
             }
         }
 
+        // uses variable references rather than variable values
+        VariableProxy get_variable_referenced_by(const Instruction::Operand& reference) {
+            Word address = this->operand_value(reference);
+            // address should be in range 0x00..0xFF --error if not
+            if (address > 0xFF) {
+                throw Exception();
+            }
+            // now, fetch a proxy to the actual variable referenced by the address
+            return get_variable((Byte)address);
+        }
+
         void opcode_call(const Instruction& instruction) {
             // must have 1..4 operands --routine address + 0..3 arguments
             if (not (0 < instruction.operands.size() and instruction.operands.size() <= 4)) {
@@ -442,16 +453,32 @@ namespace com::saxbophone::zench {
             if (instruction.operands.size() != 1) {
                 throw WrongNumberOfInstructionOperandsException();
             }
-            Word address = this->operand_value(instruction.operands[0]);
-            // address should be in range 0x00..0xFF --error if not
-            if (address > 0xFF) {
-                throw Exception();
-            }
-            // now, fetch a proxy to the actual variable referenced by the address and set it to stack top value
-            get_variable((Byte)address) = this->call_stack.back().local_stack.back();
+            get_variable_referenced_by(instruction.operands[0]) = this->call_stack.back().local_stack.back();
             // finally, pop the top of the stack
             return this->opcode_pop();
         }
+
+        void opcode_store(const Instruction& instruction) {
+            // must have 2 operands only
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // set the variable referenced by the first operand to the value of the second
+            get_variable_referenced_by(instruction.operands[0]) = this->operand_value(instruction.operands[1]);
+        }
+
+        void opcode_load(const Instruction& instruction) {
+            // The value of the variable referred to by the operand is stored in the result.
+            get_variable(instruction.store_variable.value()) = get_variable_referenced_by(instruction.operands[0]);
+        }
+
+        void opcode_storeb(const Instruction& instruction) {}
+
+        void opcode_loadb(const Instruction& instruction) {}
+
+        void opcode_storew(const Instruction& instruction) {}
+
+        void opcode_loadw(const Instruction& instruction) {}
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
