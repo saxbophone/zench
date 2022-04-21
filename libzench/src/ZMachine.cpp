@@ -423,14 +423,50 @@ namespace com::saxbophone::zench {
             }
         }
 
+        void opcode_pop() {
+            // throw top value of stack away
+            this->call_stack.back().local_stack.pop_back();
+        }
+
+        void opcode_push(const Instruction& instruction) {
+            // must have 1 operand only --the value to push
+            if (instruction.operands.size() != 1) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // push the only operand onto the local stack
+            this->call_stack.back().local_stack.push_back(this->operand_value(instruction.operands[0]));
+        }
+
+        void opcode_pull(const Instruction& instruction) {
+            // must have 1 operand only --the address of the variable to pull into
+            if (instruction.operands.size() != 1) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            Word address = this->operand_value(instruction.operands[0]);
+            // address should be in range 0x00..0xFF --error if not
+            if (address > 0xFF) {
+                throw Exception();
+            }
+            // now, fetch a proxy to the actual variable referenced by the address and set it to stack top value
+            get_variable((Byte)address) = this->call_stack.back().local_stack.back();
+            // finally, pop the top of the stack
+            return this->opcode_pop();
+        }
+
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
             std::span<const Byte> memory_view{memory}; // read only accessor for memory
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
             std::cout << std::string(this->call_stack.size() - 1, '>') << instruction.to_string();
             // XXX: this branching works for now when only 3 opcodes are implemented
-            if (instruction.category == Instruction::Category::VAR and instruction.opcode == 0x0) { // call
-                return this->opcode_call(instruction);
+            if (instruction.category == Instruction::Category::VAR) {
+                if (instruction.opcode == 0x0) { // call
+                    return this->opcode_call(instruction);
+                } else if (instruction.opcode == 0x8) { // push
+                    return this->opcode_push(instruction);
+                } else if (instruction.opcode == 0x9) { // pull
+                    return this->opcode_pull(instruction);
+                }
             } else if (instruction.category == Instruction::Category::_2OP) {
                 if (instruction.opcode == 0x1) { // je
                     return this->opcode_je(instruction);
@@ -456,6 +492,8 @@ namespace com::saxbophone::zench {
                     return this->opcode_print_ret();
                 } else if (instruction.opcode == 0x8) { // ret_popped
                     return this->opcode_ret_popped();
+                } else if (instruction.opcode == 0x9) { // pop
+                    return this->opcode_pop();
                 }
             }
             // default:
