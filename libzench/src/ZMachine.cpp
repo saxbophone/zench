@@ -500,7 +500,7 @@ namespace com::saxbophone::zench {
             ByteAddress byte_index = this->operand_value(instruction.operands[1]);
             // calculate absolute address of Byte to load
             ByteAddress address = array + byte_index; // may overflow, ignore
-            // read byte as long as address is in range of static or dynamic memory
+            // read Byte as long as address is in range of static or dynamic memory
             if (address < this->readable_memory.size()) {
                 // store byte in result
                 get_variable(instruction.store_variable.value()) = this->readable_memory[address];
@@ -514,10 +514,10 @@ namespace com::saxbophone::zench {
             }
             // gather operands
             ByteAddress array = this->operand_value(instruction.operands[0]);
-            WordAddress word_index = this->operand_value(instruction.operands[1]);
+            ByteAddress word_index = this->operand_value(instruction.operands[1]);
             Word value = this->operand_value(instruction.operands[2]);
             // calculate absolute address of Word to store
-            Address address = array + 2 * word_index; // may overflow, ignore
+            ByteAddress address = array + 2 * word_index; // may overflow, ignore
             // validate if address is in range of writeable memory
             if (address < this->writeable_memory.size()) {
                 // TODO: whitelist write access to header bytes!
@@ -525,7 +525,22 @@ namespace com::saxbophone::zench {
             }
         }
 
-        void opcode_loadw(const Instruction& instruction) {}
+        void opcode_loadw(const Instruction& instruction) {
+            // must have two operands --array and word_index
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress word_index = this->operand_value(instruction.operands[1]);
+            // calculate absolute address of Word to load
+            ByteAddress address = array + word_index; // may overflow, ignore
+            // read Word as long as address is in range of static or dynamic memory
+            if (address < this->readable_memory.size()) {
+                // store Word in result
+                get_variable(instruction.store_variable.value()) = this->load_word(address);
+            }
+        }
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
         void execute_next_instruction() {
