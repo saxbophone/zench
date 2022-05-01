@@ -491,6 +491,10 @@ namespace com::saxbophone::zench {
                 switch (instruction.opcode) {
                 case 0x0: // call
                     return this->opcode_call(instruction);
+                case 0x1: // storew
+                    return this->opcode_storew(instruction);
+                case 0x2: // storeb
+                    return this->opcode_storeb(instruction);
                 case 0x8: // push
                     return this->opcode_push(instruction);
                 case 0x9: // pull
@@ -500,23 +504,31 @@ namespace com::saxbophone::zench {
                 }
             case Instruction::Category::_2OP:
                 switch (instruction.opcode) {
-                case 0x1: // je
+                case 0x01: // je
                     return this->opcode_je(instruction);
-                case 0x2: // jl
+                case 0x02: // jl
                     return this->conditional_jump<std::less<SWord>>(instruction);
-                case 0x3: // jg
+                case 0x03: // jg
                     return this->conditional_jump<std::greater<SWord>>(instruction);
+                case 0x0d: // store
+                    return this->opcode_store(instruction);
+                case 0x0f: // loadw
+                    return this->opcode_loadw(instruction);
+                case 0x10: // loadb
+                    return this->opcode_loadb(instruction);
                 default:
                     goto unimplemented;
                 }
             case Instruction::Category::_1OP:
                 switch (instruction.opcode) {
+                case 0x0: // jz
+                    return this->opcode_jz(instruction);
                 case 0xb: // ret
                     return this->opcode_ret(instruction);
                 case 0xc: // jump
                     return this->opcode_jump(instruction);
-                case 0x0: // jz
-                    return this->opcode_jz(instruction);
+                case 0xe: // load
+                    return this->opcode_load(instruction);
                 default:
                     goto unimplemented;
                 }
