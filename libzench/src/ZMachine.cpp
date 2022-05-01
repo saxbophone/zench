@@ -481,7 +481,7 @@ namespace com::saxbophone::zench {
             ByteAddress array = this->operand_value(instruction.operands[0]);
             ByteAddress byte_index = this->operand_value(instruction.operands[1]);
             Word value = this->operand_value(instruction.operands[2]);
-            // calculate absolute address of byte to store
+            // calculate absolute address of Byte to store
             ByteAddress address = array + byte_index; // may overflow, ignore
             // write byte as long as address is in range of dynamic memory
             if (address < this->writeable_memory.size()) {
@@ -492,7 +492,23 @@ namespace com::saxbophone::zench {
 
         void opcode_loadb(const Instruction& instruction) {}
 
-        void opcode_storew(const Instruction& instruction) {}
+        void opcode_storew(const Instruction& instruction) {
+            // must have three operands --array, word_index and value
+            if (instruction.operands.size() != 3) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            WordAddress word_index = this->operand_value(instruction.operands[1]);
+            Word value = this->operand_value(instruction.operands[2]);
+            // calculate absolute address of Word to store
+            Address address = array + 2 * word_index; // may overflow, ignore
+            // validate if address is in range of writeable memory
+            if (address < this->writeable_memory.size()) {
+                // TODO: whitelist write access to header bytes!
+                this->load_word(address) = value; // assign through proxy
+            }
+        }
 
         void opcode_loadw(const Instruction& instruction) {}
 
