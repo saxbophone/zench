@@ -472,7 +472,23 @@ namespace com::saxbophone::zench {
             get_variable(instruction.store_variable.value()) = get_variable_referenced_by(instruction.operands[0]);
         }
 
-        void opcode_storeb(const Instruction& instruction) {}
+        void opcode_storeb(const Instruction& instruction) {
+            // must have three operands --array, byte_index and value
+            if (instruction.operands.size() != 3) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress byte_index = this->operand_value(instruction.operands[1]);
+            Word value = this->operand_value(instruction.operands[2]);
+            // calculate absolute address of byte to store
+            ByteAddress address = array + byte_index; // may overflow, ignore
+            // write byte as long as address is in range of dynamic memory
+            if (address < this->writeable_memory.size()) {
+                // TODO: whitelist write access to header bytes!
+                this->writeable_memory[address] = (Byte)value;
+            }
+        }
 
         void opcode_loadb(const Instruction& instruction) {}
 
