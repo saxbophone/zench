@@ -486,44 +486,60 @@ namespace com::saxbophone::zench {
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
             std::cout << std::string(this->call_stack.size() - 1, '>') << instruction.to_string();
             // XXX: this branching works for now when only 3 opcodes are implemented
-            if (instruction.category == Instruction::Category::VAR) {
-                if (instruction.opcode == 0x0) { // call
+            switch (instruction.category) {
+            case Instruction::Category::VAR:
+                switch (instruction.opcode) {
+                case 0x0: // call
                     return this->opcode_call(instruction);
-                } else if (instruction.opcode == 0x8) { // push
+                case 0x8: // push
                     return this->opcode_push(instruction);
-                } else if (instruction.opcode == 0x9) { // pull
+                case 0x9: // pull
                     return this->opcode_pull(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_2OP) {
-                if (instruction.opcode == 0x1) { // je
+            case Instruction::Category::_2OP:
+                switch (instruction.opcode) {
+                case 0x1: // je
                     return this->opcode_je(instruction);
-                } else if (instruction.opcode == 0x2) { // jl
+                case 0x2: // jl
                     return this->conditional_jump<std::less<SWord>>(instruction);
-                } else if (instruction.opcode == 0x3) { // jg
+                case 0x3: // jg
                     return this->conditional_jump<std::greater<SWord>>(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_1OP) {
-                if (instruction.opcode == 0xb) { // ret
+            case Instruction::Category::_1OP:
+                switch (instruction.opcode) {
+                case 0xb: // ret
                     return this->opcode_ret(instruction);
-                } else if (instruction.opcode == 0xc) { // jump
+                case 0xc: // jump
                     return this->opcode_jump(instruction);
-                } else if (instruction.opcode == 0x0) { // jz
+                case 0x0: // jz
                     return this->opcode_jz(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_0OP) {
-                if (instruction.opcode == 0x0) { // rtrue
+            case Instruction::Category::_0OP:
+                switch (instruction.opcode) {
+                case 0x0: // rtrue
                     return this->opcode_rtrue();
-                } else if (instruction.opcode == 0x1) { // rfalse
+                case 0x1: // rfalse
                     return this->opcode_rfalse();
-                } else if (instruction.opcode == 0x3) { // print_ret
+                case 0x3: // print_ret
                     return this->opcode_print_ret();
-                } else if (instruction.opcode == 0x8) { // ret_popped
+                case 0x8: // ret_popped
                     return this->opcode_ret_popped();
-                } else if (instruction.opcode == 0x9) { // pop
+                case 0x9: // pop
                     return this->opcode_pop();
+                default:
+                    goto unimplemented;
                 }
+            default:
+                // actually an error --unknown/unsupported instruction category
+                throw Exception();
             }
-            // default:
+        unimplemented:
             // XXX: no throw for now, will throw later on unimplemented instructions
             std::cout << " [WARN]: Instruction not implemented";
             // throw UnimplementedInstructionException();
