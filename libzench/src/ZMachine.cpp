@@ -266,6 +266,17 @@ namespace com::saxbophone::zench {
             }
         }
 
+        // uses variable references rather than variable values
+        VariableProxy get_variable_referenced_by(const Instruction::Operand& reference) {
+            Word address = this->operand_value(reference);
+            // address should be in range 0x00..0xFF --error if not
+            if (address > 0xFF) {
+                throw Exception();
+            }
+            // now, fetch a proxy to the actual variable referenced by the address
+            return get_variable((Byte)address);
+        }
+
         void opcode_call(const Instruction& instruction) {
             // must have 1..4 operands --routine address + 0..3 arguments
             if (not (0 < instruction.operands.size() and instruction.operands.size() <= 4)) {
@@ -442,15 +453,93 @@ namespace com::saxbophone::zench {
             if (instruction.operands.size() != 1) {
                 throw WrongNumberOfInstructionOperandsException();
             }
-            Word address = this->operand_value(instruction.operands[0]);
-            // address should be in range 0x00..0xFF --error if not
-            if (address > 0xFF) {
-                throw Exception();
-            }
-            // now, fetch a proxy to the actual variable referenced by the address and set it to stack top value
-            get_variable((Byte)address) = this->call_stack.back().local_stack.back();
+            get_variable_referenced_by(instruction.operands[0]) = this->call_stack.back().local_stack.back();
             // finally, pop the top of the stack
             return this->opcode_pop();
+        }
+
+        void opcode_store(const Instruction& instruction) {
+            // must have 2 operands only
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // set the variable referenced by the first operand to the value of the second
+            get_variable_referenced_by(instruction.operands[0]) = this->operand_value(instruction.operands[1]);
+        }
+
+        void opcode_load(const Instruction& instruction) {
+            // The value of the variable referred to by the operand is stored in the result.
+            get_variable(instruction.store_variable.value()) = get_variable_referenced_by(instruction.operands[0]);
+        }
+
+        void opcode_storeb(const Instruction& instruction) {
+            // must have three operands --array, byte_index and value
+            if (instruction.operands.size() != 3) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress byte_index = this->operand_value(instruction.operands[1]);
+            Word value = this->operand_value(instruction.operands[2]);
+            // calculate absolute address of Byte to store
+            ByteAddress address = array + byte_index; // may overflow, ignore
+            // write byte as long as address is in range of dynamic memory
+            if (address < this->writeable_memory.size()) {
+                // TODO: whitelist write access to header bytes!
+                this->writeable_memory[address] = (Byte)value;
+            }
+        }
+
+        void opcode_loadb(const Instruction& instruction) {
+            // must have two operands --array and byte_index
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress byte_index = this->operand_value(instruction.operands[1]);
+            // calculate absolute address of Byte to load
+            ByteAddress address = array + byte_index; // may overflow, ignore
+            // read Byte as long as address is in range of static or dynamic memory
+            if (address < this->readable_memory.size()) {
+                // store byte in result
+                get_variable(instruction.store_variable.value()) = this->readable_memory[address];
+            }
+        }
+
+        void opcode_storew(const Instruction& instruction) {
+            // must have three operands --array, word_index and value
+            if (instruction.operands.size() != 3) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress word_index = this->operand_value(instruction.operands[1]);
+            Word value = this->operand_value(instruction.operands[2]);
+            // calculate absolute address of Word to store
+            ByteAddress address = array + 2 * word_index; // may overflow, ignore
+            // validate if address is in range of writeable memory
+            if (address < this->writeable_memory.size()) {
+                // TODO: whitelist write access to header bytes!
+                this->load_word(address) = value; // assign through proxy
+            }
+        }
+
+        void opcode_loadw(const Instruction& instruction) {
+            // must have two operands --array and word_index
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress word_index = this->operand_value(instruction.operands[1]);
+            // calculate absolute address of Word to load
+            ByteAddress address = array + word_index; // may overflow, ignore
+            // read Word as long as address is in range of static or dynamic memory
+            if (address < this->readable_memory.size()) {
+                // store Word in result
+                get_variable(instruction.store_variable.value()) = this->load_word(address);
+            }
         }
 
         // NOTE: this method advances the Program Counter (_pc) and writes to stdout
@@ -459,44 +548,72 @@ namespace com::saxbophone::zench {
             Instruction instruction = Instruction::decode(pc, memory_view); // modifies pc in-place
             std::cout << std::string(this->call_stack.size() - 1, '>') << instruction.to_string();
             // XXX: this branching works for now when only 3 opcodes are implemented
-            if (instruction.category == Instruction::Category::VAR) {
-                if (instruction.opcode == 0x0) { // call
+            switch (instruction.category) {
+            case Instruction::Category::VAR:
+                switch (instruction.opcode) {
+                case 0x0: // call
                     return this->opcode_call(instruction);
-                } else if (instruction.opcode == 0x8) { // push
+                case 0x1: // storew
+                    return this->opcode_storew(instruction);
+                case 0x2: // storeb
+                    return this->opcode_storeb(instruction);
+                case 0x8: // push
                     return this->opcode_push(instruction);
-                } else if (instruction.opcode == 0x9) { // pull
+                case 0x9: // pull
                     return this->opcode_pull(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_2OP) {
-                if (instruction.opcode == 0x1) { // je
+            case Instruction::Category::_2OP:
+                switch (instruction.opcode) {
+                case 0x01: // je
                     return this->opcode_je(instruction);
-                } else if (instruction.opcode == 0x2) { // jl
+                case 0x02: // jl
                     return this->conditional_jump<std::less<SWord>>(instruction);
-                } else if (instruction.opcode == 0x3) { // jg
+                case 0x03: // jg
                     return this->conditional_jump<std::greater<SWord>>(instruction);
+                case 0x0d: // store
+                    return this->opcode_store(instruction);
+                case 0x0f: // loadw
+                    return this->opcode_loadw(instruction);
+                case 0x10: // loadb
+                    return this->opcode_loadb(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_1OP) {
-                if (instruction.opcode == 0xb) { // ret
-                    return this->opcode_ret(instruction);
-                } else if (instruction.opcode == 0xc) { // jump
-                    return this->opcode_jump(instruction);
-                } else if (instruction.opcode == 0x0) { // jz
+            case Instruction::Category::_1OP:
+                switch (instruction.opcode) {
+                case 0x0: // jz
                     return this->opcode_jz(instruction);
+                case 0xb: // ret
+                    return this->opcode_ret(instruction);
+                case 0xc: // jump
+                    return this->opcode_jump(instruction);
+                case 0xe: // load
+                    return this->opcode_load(instruction);
+                default:
+                    goto unimplemented;
                 }
-            } else if (instruction.category == Instruction::Category::_0OP) {
-                if (instruction.opcode == 0x0) { // rtrue
+            case Instruction::Category::_0OP:
+                switch (instruction.opcode) {
+                case 0x0: // rtrue
                     return this->opcode_rtrue();
-                } else if (instruction.opcode == 0x1) { // rfalse
+                case 0x1: // rfalse
                     return this->opcode_rfalse();
-                } else if (instruction.opcode == 0x3) { // print_ret
+                case 0x3: // print_ret
                     return this->opcode_print_ret();
-                } else if (instruction.opcode == 0x8) { // ret_popped
+                case 0x8: // ret_popped
                     return this->opcode_ret_popped();
-                } else if (instruction.opcode == 0x9) { // pop
+                case 0x9: // pop
                     return this->opcode_pop();
+                default:
+                    goto unimplemented;
                 }
+            default:
+                // actually an error --unknown/unsupported instruction category
+                throw Exception();
             }
-            // default:
+        unimplemented:
             // XXX: no throw for now, will throw later on unimplemented instructions
             std::cout << " [WARN]: Instruction not implemented";
             // throw UnimplementedInstructionException();
