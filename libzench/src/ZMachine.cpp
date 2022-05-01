@@ -490,7 +490,22 @@ namespace com::saxbophone::zench {
             }
         }
 
-        void opcode_loadb(const Instruction& instruction) {}
+        void opcode_loadb(const Instruction& instruction) {
+            // must have two operands --array and byte_index
+            if (instruction.operands.size() != 2) {
+                throw WrongNumberOfInstructionOperandsException();
+            }
+            // gather operands
+            ByteAddress array = this->operand_value(instruction.operands[0]);
+            ByteAddress byte_index = this->operand_value(instruction.operands[1]);
+            // calculate absolute address of Byte to load
+            ByteAddress address = array + byte_index; // may overflow, ignore
+            // read byte as long as address is in range of static or dynamic memory
+            if (address < this->readable_memory.size()) {
+                // store byte in result
+                get_variable(instruction.store_variable.value()) = this->readable_memory[address];
+            }
+        }
 
         void opcode_storew(const Instruction& instruction) {
             // must have three operands --array, word_index and value
