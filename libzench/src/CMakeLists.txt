@@ -4,6 +4,7 @@ target_sources(
         PRIVATE
             zench.cpp
             ZMachine.cpp
+            ZStringDecoder.cpp
 )
 # sub-namespace source directories
 # NOTE: none yet!

@@ -32,6 +32,18 @@ namespace com::saxbophone::zench {
     using PackedAddress = std::uint16_t; // packed address for routines and strings
     // Z-machine string stuff
     using ZChar = Byte;
+    // handy enum for Z-machine versions
+    enum class ZVersion : int {
+        UNDEFINED = 0,
+        V1 = 1,
+        V2 = 2,
+        V3 = 3,
+        V4 = 4,
+        V5 = 5,
+        V6 = 6,
+        V7 = 7,
+        V8 = 8,
+    };
 
     // base class for all of zench's exceptions
     class Exception : public std::exception {};
