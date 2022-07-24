@@ -17,6 +17,7 @@
 #include <vector>    // vector
 
 #include <zench/zench.hpp>
+#include <zench/ZStringDecoder.hpp>
 
 namespace com::saxbophone::zench {
     struct Instruction {
@@ -414,11 +415,9 @@ namespace com::saxbophone::zench {
         std::string _literal_string() const {
             if (!trailing_string_literal) { return ""; }
             std::stringstream str;
-            str << " Z-str{" << std::hex;
-            for (std::size_t i = 0; i < trailing_string_literal->size(); i++) {
-                str << (Word)trailing_string_literal.value()[i];
-            }
-            str << "}";
+            str << " \"";
+            str << ZStringDecoder(ZVersion::V3).decode(trailing_string_literal.value());
+            str << "\"";
             return str.str();
         }
 
