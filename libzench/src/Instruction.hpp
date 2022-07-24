@@ -58,7 +58,7 @@ namespace com::saxbophone::zench {
         std::vector<Operand> operands;
         std::optional<Byte> store_variable;
         std::optional<Branch> branch;
-        std::optional<std::span<const ZChar>> trailing_string_literal;
+        std::optional<std::span<const Byte>> trailing_string_literal;
         // strictly metadata fields for assembly output:
         Address location; // address of the first byte of this instruction
         std::span<const Byte> bytecode; // the raw bytes that encode this instruction

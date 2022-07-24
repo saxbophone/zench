@@ -30,8 +30,6 @@ namespace com::saxbophone::zench {
     using ByteAddress = std::uint16_t; // address to a Byte anywhere in dynamic or static memory
     using WordAddress = std::uint16_t; // address/2 of a Word anywhere in the bottom 128KiB of all memory
     using PackedAddress = std::uint16_t; // packed address for routines and strings
-    // Z-machine string stuff
-    using ZChar = Byte;
     // handy enum for Z-machine versions
     enum class ZVersion : int {
         UNDEFINED = 0,
