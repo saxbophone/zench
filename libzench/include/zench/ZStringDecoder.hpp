@@ -38,12 +38,12 @@ namespace com::saxbophone::zench {
          * convert that on an as-needs basis rather than work solely in UTF16
          * to accomodate it...
          */
-        std::string decode(std::span<const ZChar> z_string);
+        std::string decode(std::span<const ZChar> z_string) const;
     private:
         std::string _decode(
             std::span<const ZChar> z_string,
             bool abbreviations_allowed=true
-        );
+        ) const;
     };
 }
 

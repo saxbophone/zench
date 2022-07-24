@@ -15,14 +15,14 @@ namespace com::saxbophone::zench {
         std::optional<std::span<char16_t>> unicode_translation_table
     ) {}
 
-    std::string ZStringDecoder::decode(std::span<const ZChar> z_string) {
-        return "<NOT DECODED>";
+    std::string ZStringDecoder::decode(std::span<const ZChar> z_string) const {
+        return _decode(z_string, false);
     }
 
     std::string ZStringDecoder::_decode(
         std::span<const ZChar> z_string,
         bool abbreviations_allowed
-    ) {
-        return "<NOT DECODED (internal)>";
+    ) const {
+        return "<NOT DECODED>";
     }
 }
