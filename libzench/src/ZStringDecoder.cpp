@@ -1,5 +1,5 @@
 /*
- * This is a sample source file corresponding to a public header file.
+ * This is a sample source file corresponding to a private header file.
  *
  * <Copyright information goes here>
  */
@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include <zench/ZStringDecoder.hpp>
+#include "ZStringDecoder.hpp"
 
 namespace {
     using namespace com::saxbophone::zench;

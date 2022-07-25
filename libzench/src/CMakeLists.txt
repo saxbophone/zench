@@ -2,6 +2,7 @@
 target_sources(
     libzench
         PRIVATE
+            Instruction.cpp
             zench.cpp
             ZMachine.cpp
             ZStringDecoder.cpp
