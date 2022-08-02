@@ -23,6 +23,22 @@
 #include <vector>
 
 namespace com::saxbophone::zench {
+    /**
+     * @brief This is the lowest-level keyboard driver for use with Zench.
+     * @details Implementors of a keyboard to interface with Zench should
+     * inherit from this class and override all prototyped methods it specifies,
+     * with appropriate behaviour.
+     * @note This Keyboard interface is non-blocking from the point of view of
+     * the Z-machine, i.e. you should send all applicable keyboard input from
+     * your application into this interface at all times, without worrying about
+     * whether the Z-machine is waiting for input or not --this buffering/blocking
+     * behaviour is provided by Zench itself.
+     * This is important as it allows Zench to echo input to the Screen as it is
+     * being typed, without having to wait for the results of an executed READ
+     * opcode. Zench will not start echoing keyboard input to the screen until
+     * a READ opcode has started executing, but this is beyond scope of a Keyboard
+     * interface to worry about in any case.
+     */
     class Keyboard {
     public:
         // these are keycodes that may not be well supported by UTF-16, but which Z-machine requires input for
@@ -41,6 +57,14 @@ namespace com::saxbophone::zench {
         };
         // NOTE: normal text input should be sent as sequences of UTF-16 codepoints. The Z-machine converts them to ZSCII.
         using Event = std::variant<char16_t, SpecialKey>;
+        /**
+         * @returns whether this Keyboard driver supports mouse input or not
+         */
+        constexpr virtual bool supports_mouse() = 0;
+        /**
+         * @returns whether this Keyboard driver supports menus or not
+         */
+        constexpr virtual bool supports_menus() = 0;
         /**
          * @brief Get any keyboard input events that were triggered since this
          * method was last called
