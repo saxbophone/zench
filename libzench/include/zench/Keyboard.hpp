@@ -38,7 +38,7 @@ namespace com::saxbophone::zench {
             N0, N1, N2, N3, N4, N5, N6, N7, N8, N9,
         };
         // NOTE: normal text input should be sent as sequences of UTF-16 codepoints. The Z-machine converts them to ZSCII.
-
+        using Event = std::variant<char16_t, SpecialKey>;
         /**
          * @brief Get any keyboard input events that were triggered since this
          * method was last called
@@ -48,7 +48,7 @@ namespace com::saxbophone::zench {
          * emitted.
          * @post The underlying container holding the input events is empty
          */
-        virtual std::vector<std::variant<char16_t, SpecialKey>> get_input() = 0;
+        virtual std::vector<Event> get_input() = 0;
     };
 }
 
