@@ -1,26 +1,30 @@
-#include <zench/FileSystem.hpp>
+#include <iostream>
+
+#include <zench/StandardFileSystem.hpp>
 #include <zench/Keyboard.hpp>
 #include <zench/Screen.hpp>
 #include <zench/ZMachine.hpp>
 
 using namespace com::saxbophone::zench;
 
-// these stubs do nothing useful except provide a dummy implementation of the
-// abstract classes so the code will compile. These will all be replaced in-turn
-// with functional versions.
-class StubFileSystem : public FileSystem {
+// prompts for filenames on the console
+class ConsoleFilePicker : public StandardFilePicker {
 public:
-    virtual std::optional<InputFile> open_for_read() { return {}; }
-    virtual std::optional<InputFile> open_for_read(char16_t filename[13]) { return {}; }
-    virtual std::optional<OutputFile> open_for_write() { return {}; }
-    virtual std::optional<OutputFile> open_for_write(char16_t filename[13]) { return {}; }
+    virtual std::string get_filename() {
+        std::cout << "Enter a filename: ";
+        std::cout.flush();
+        std::string filename;
+        std::cin >> filename;
+        return filename;
+    }
 };
 class StubScreen : public Screen {};
 class StubKeyboard : public Keyboard {};
 
 int main(int argc, const char* argv[]) {
     InputFile game;
-    StubFileSystem fs;
+    ConsoleFilePicker picker;
+    StandardFileSystem fs(picker);
     StubScreen screen;
     StubKeyboard keyboard;
 

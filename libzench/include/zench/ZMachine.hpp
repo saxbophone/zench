@@ -1,6 +1,6 @@
 /**
  * @file
- * This is a sample public header.
+ * This is a sample public header file.
  *
  * @author Your Name <your.email.address@goes.here>
  * @date Creation/Edit Date

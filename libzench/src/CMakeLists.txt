@@ -2,6 +2,7 @@
 target_sources(
     libzench
         PRIVATE
+            StandardFileSystem.cpp
             ZMachine.cpp
             ZMachineImpl.cpp
 )
