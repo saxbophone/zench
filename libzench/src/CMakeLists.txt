@@ -6,6 +6,7 @@ target_sources(
             VariableProxy.cpp
             zench.cpp
             ZMachine.cpp
+            ZMachineImpl.cpp
             ZStringDecoder.cpp
 )
 # sub-namespace source directories
