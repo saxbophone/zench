@@ -34,11 +34,13 @@ namespace com::saxbophone::zench {
         // one to eight alphanumeric characters, a full stop and zero to three alphanumeric characters for extension.
         // NOTE: pedantically, we use UTF-16 characters as the spec doesn't specify they have to be ASCII. They probably
         // are in practice, though. We use null-terminated strings, hence the 13-character maximum.
+        // TODO: what about the optional "prompt?" flag?
         virtual std::optional<InputFile> open_for_read(std::string filename) = 0;
         // tries to open a file for writing to. Where the file comes from, is the responsibility of the FileSystem
         // object to determine (such as prompting the user, or opening up a file-picker).
         virtual std::optional<OutputFile> open_for_write() = 0;
         // tries to open a file with the given name, for writing to.
+        // TODO: what about the optional "prompt?" flag?
         virtual std::optional<OutputFile> open_for_write(std::string filename) = 0;
     };
 }
