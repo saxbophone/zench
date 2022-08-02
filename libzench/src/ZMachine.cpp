@@ -21,12 +21,16 @@
 
 namespace com::saxbophone::zench {
     ZMachine::ZMachine(
-        InputFile& game_file,
+        InputFile& story_file,
         FileSystem& fs,
         Screen& screen,
         Keyboard& keyboard
-    ) : _impl(new ZMachineImpl(game_file, fs, screen, keyboard)) {}
+    ) : _impl(new ZMachineImpl(story_file, fs, screen, keyboard)) {}
 
     ZMachine::~ZMachine() = default; // needed to allow pimpl idiom to work
     // see: https://www.fluentcpp.com/2017/09/22/make-pimpl-using-unique_ptr/
+    // returns true if ZMachine instance is ready to execute an instruction
+    bool ZMachine::is_ready() { return false; } // STUB
+    // executes one instruction
+    void ZMachine::execute() { return; } // STUB
 }

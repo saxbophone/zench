@@ -36,6 +36,7 @@ class StubScreen : public Screen {};
 class StubKeyboard : public Keyboard {};
 
 int main(int argc, const char* argv[]) {
+    // TODO: load up story file properly
     InputFile game;
     ConsoleFilePicker picker;
     StandardFileSystem fs(picker);
@@ -43,4 +44,8 @@ int main(int argc, const char* argv[]) {
     StubKeyboard keyboard;
 
     ZMachine vm(game, fs, screen, keyboard);
+
+    while (vm.is_ready()) {
+        vm.execute();
+    }
 }

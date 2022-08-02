@@ -29,12 +29,16 @@ namespace com::saxbophone::zench {
     class ZMachine {
     public:
         ZMachine(
-            InputFile& game_file,
+            InputFile& story_file,
             FileSystem& fs,
             Screen& screen,
             Keyboard& keyboard
         );
         ~ZMachine();
+        // returns true if ZMachine instance is ready to execute an instruction
+        bool is_ready();
+        // executes one instruction
+        void execute();
     private:
         class ZMachineImpl;
         // pimpl pointer

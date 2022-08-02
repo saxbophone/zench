@@ -21,7 +21,7 @@
 
 namespace com::saxbophone::zench {
     ZMachine::ZMachineImpl::ZMachineImpl(
-        InputFile& game_file,
+        InputFile& story_file,
         FileSystem& fs,
         Screen& screen,
         Keyboard& keyboard
