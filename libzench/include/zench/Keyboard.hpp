@@ -17,7 +17,10 @@
 #define COM_SAXBOPHONE_ZENCH_KEYBOARD_HPP
 
 namespace com::saxbophone::zench {
-    class Keyboard {};
+    class Keyboard {
+    public:
+        virtual ~Keyboard() = 0;
+    };
 }
 
 #endif // include guard

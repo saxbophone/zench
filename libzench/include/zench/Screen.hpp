@@ -17,7 +17,10 @@
 #define COM_SAXBOPHONE_ZENCH_SCREEN_HPP
 
 namespace com::saxbophone::zench {
-    class Screen {};
+    class Screen {
+    public:
+        virtual ~Screen() = 0;
+    };
 }
 
 #endif // include guard

@@ -27,18 +27,18 @@ namespace com::saxbophone::zench {
         // all the following methods return std::nullopt when a file could not be retrieved.
         // tries to open a file for reading from. Where the file comes from, is the responsibility of the FileSystem
         // object to determine (such as prompting the user, or opening up a file-picker).
-        virtual std::optional<InputFile> open_for_read() { return {}; }
+        virtual std::optional<InputFile> open_for_read() = 0;
         // tries to open a file with the given name, for reading from.
         // Filenames have the following format (approximately the MS-DOS 8.3 rule):
         // one to eight alphanumeric characters, a full stop and zero to three alphanumeric characters for extension.
         // NOTE: pedantically, we use UTF-16 characters as the spec doesn't specify they have to be ASCII. They probably
         // are in practice, though. We use null-terminated strings, hence the 13-character maximum.
-        virtual std::optional<InputFile> open_for_read(char16_t filename[13]) { return {}; }
+        virtual std::optional<InputFile> open_for_read(char16_t filename[13]) = 0;
         // tries to open a file for writing to. Where the file comes from, is the responsibility of the FileSystem
         // object to determine (such as prompting the user, or opening up a file-picker).
-        virtual std::optional<OutputFile> open_for_write() { return {}; }
+        virtual std::optional<OutputFile> open_for_write() = 0;
         // tries to open a file with the given name, for writing to.
-        virtual std::optional<OutputFile> open_for_write(char16_t filename[13]) { return {}; }
+        virtual std::optional<OutputFile> open_for_write(char16_t filename[13]) = 0;
     };
 }
 
