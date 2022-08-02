@@ -18,8 +18,7 @@
 
 namespace com::saxbophone::zench {
     class Screen {
-    public:
-        virtual ~Screen() = 0;
+        // This is meant to be abstract
     };
 }
 

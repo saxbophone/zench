@@ -18,8 +18,7 @@
 
 namespace com::saxbophone::zench {
     class Keyboard {
-    public:
-        virtual ~Keyboard() = 0;
+        // This is meant to be abstract
     };
 }
 
