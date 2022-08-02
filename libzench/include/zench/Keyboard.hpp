@@ -36,6 +36,8 @@ namespace com::saxbophone::zench {
             F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
             // numpad keys --maybe unused? Or perhaps these are to allow reading numpad separately from the numeric keys
             N0, N1, N2, N3, N4, N5, N6, N7, N8, N9,
+            // mouse input codes (yes, some of the mouse input is handled via the "keyboard"!)
+            MenuClick, DoubleClick, SingleClick,
         };
         // NOTE: normal text input should be sent as sequences of UTF-16 codepoints. The Z-machine converts them to ZSCII.
         using Event = std::variant<char16_t, SpecialKey>;
