@@ -1,16 +1,15 @@
-/**
- * @file
- * This is a sample private header.
+/*
+ * This file forms part of libzench
+ * libzench is a software library that implements a portable and extensible
+ * Z-machine interpreter, designed to be embedded within other programs.
  *
- * @author Your Name <your.email.address@goes.here>
- * @date Creation/Edit Date
+ * Created by Joshua Saxby <joshua.a.saxby@gmail.com>, May 2022
  *
- * @copyright Copyright information goes here
+ * Copyright Joshua Saxby <joshua.a.saxby@gmail.com> 2022
  *
- * @copyright
- * Copyright information can span multiple paragraphs if needed, such as if you
- * use a well-known software license for which license header text (to be
- * placed in locations like these) are provided by the license custodians.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
 #ifndef COM_SAXBOPHONE_ZENCH_ZMACHINE_IMPL_HPP
