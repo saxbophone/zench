@@ -48,7 +48,8 @@ namespace com::saxbophone::zench {
          * there were not any input events, rather than wait for input events.
          * @returns a sequence of input events, in the order that they were
          * emitted.
-         * @post The underlying container holding the input events is empty
+         * @post The underlying container holding the input events is empty of
+         * all the events returned by this method.
          */
         virtual std::vector<Event> get_input() = 0;
     };
