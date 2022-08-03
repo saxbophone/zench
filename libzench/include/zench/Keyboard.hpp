@@ -43,7 +43,7 @@ namespace com::saxbophone::zench {
      */
     class Keyboard : public Component {
     public:
-        // these are keycodes that may not be well supported by UTF-16, but which Z-machine requires input for
+        // these are keycodes that may not be well supported by Unicode, but which Z-machine requires input for
         enum class SpecialKey {
             Delete,
             Newline, // NOTE: maybe unused, but provided for implementors who don't catch all LF/CR in their text input
@@ -57,8 +57,15 @@ namespace com::saxbophone::zench {
             // mouse input codes (yes, some of the mouse input is handled via the "keyboard"!)
             MenuClick, DoubleClick, SingleClick,
         };
-        // NOTE: normal text input should be sent as sequences of UTF-16 codepoints. The Z-machine converts them to ZSCII.
-        using Event = std::variant<char16_t, SpecialKey>;
+        /*
+         * NOTE: normal text input should be sent as sequences of Unicode
+         * codepoints. The Z-machine converts them to ZSCII, discarding any
+         * codepoints that don't fit within 16 bits i.e. greater than 0xffff.
+         * NOTE: this is NOT the same thing as UTF-16, which can encode all of
+         * Unicode. In the case of the Z-machine, only the Basic Multilingual
+         * Plane (BMP) of Unicode can be used, i.e. the first 65,536 codepoints.
+         */
+        using Event = std::variant<char32_t, SpecialKey>;
         /**
          * @returns whether this Keyboard driver supports mouse input or not
          */

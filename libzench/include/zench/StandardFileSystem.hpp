@@ -40,6 +40,18 @@ namespace com::saxbophone::zench {
             constexpr const char* name() override {
                 return "StandardFileSystem::InputFile";
             }
+            bool is_open() override {
+                return false;
+            }
+            void close() override {
+                return;
+            }
+            bool open() override {
+                return false;
+            }
+            char read() override {
+                return {};
+            }
         };
         class OutputFile : public FileSystem::OutputFile {
         public:
