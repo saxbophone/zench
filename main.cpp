@@ -53,7 +53,7 @@ public:
 
 int main(int argc, const char* argv[]) {
     // TODO: load up story file properly
-    InputFile game;
+    StandardFileSystem::InputFile game;
     ConsoleFilePicker picker;
     StandardFileSystem fs(picker);
     StubScreen screen;

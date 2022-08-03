@@ -16,8 +16,8 @@
 
 namespace com::saxbophone::zench {
     StandardFileSystem::StandardFileSystem(StandardFilePicker& picker) {}
-    std::optional<InputFile> StandardFileSystem::open_for_read() { return {}; }
-    std::optional<InputFile> StandardFileSystem::open_for_read(std::string filename) { return {}; }
-    std::optional<OutputFile> StandardFileSystem::open_for_write() { return {}; }
-    std::optional<OutputFile> StandardFileSystem::open_for_write(std::string filename) { return {}; }
+    std::unique_ptr<FileSystem::InputFile> StandardFileSystem::open_for_read() { return {}; }
+    std::unique_ptr<FileSystem::InputFile> StandardFileSystem::open_for_read(std::string filename) { return {}; }
+    std::unique_ptr<FileSystem::OutputFile> StandardFileSystem::open_for_write() { return {}; }
+    std::unique_ptr<FileSystem::OutputFile> StandardFileSystem::open_for_write(std::string filename) { return {}; }
 }

@@ -21,7 +21,7 @@
 
 namespace com::saxbophone::zench {
     ZMachine::ZMachine(
-        InputFile& story_file,
+        FileSystem::InputFile& story_file,
         FileSystem& fs,
         Screen& screen,
         Keyboard& keyboard

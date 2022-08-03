@@ -35,14 +35,26 @@ namespace com::saxbophone::zench {
     // an implementation of FileSystem that just passes through to the stdlib
     class StandardFileSystem : public FileSystem {
     public:
+        class InputFile : public FileSystem::InputFile {
+        public:
+            constexpr const char* name() override {
+                return "StandardFileSystem::InputFile";
+            }
+        };
+        class OutputFile : public FileSystem::OutputFile {
+        public:
+            constexpr const char* name() override {
+                return "StandardFileSystem::OutputFile";
+            }
+        };
         StandardFileSystem(StandardFilePicker& picker);
         constexpr const char* name() override {
             return "StandardFileSystem";
         }
-        std::optional<InputFile> open_for_read() override;
-        std::optional<InputFile> open_for_read(std::string filename) override;
-        std::optional<OutputFile> open_for_write() override;
-        std::optional<OutputFile> open_for_write(std::string filename) override;
+        std::unique_ptr<FileSystem::InputFile> open_for_read() override;
+        std::unique_ptr<FileSystem::InputFile> open_for_read(std::string filename) override;
+        std::unique_ptr<FileSystem::OutputFile> open_for_write() override;
+        std::unique_ptr<FileSystem::OutputFile> open_for_write(std::string filename) override;
     };
 }
 

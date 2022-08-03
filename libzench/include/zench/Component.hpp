@@ -20,6 +20,10 @@
 #define COM_SAXBOPHONE_ZENCH_COMPONENT_HPP
 
 namespace com::saxbophone::zench {
+    /**
+     * @brief A Component is one of the swappable interfaces of a Z-Machine
+     * @details These include FileSystem, Keyboard, Screen, etc...
+     */
     class Component {
     public:
         /**

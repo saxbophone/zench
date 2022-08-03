@@ -26,7 +26,7 @@ namespace com::saxbophone::zench {
     class ZMachine::ZMachineImpl {
     public:
         ZMachineImpl(
-            InputFile& story_file,
+            FileSystem::InputFile& story_file,
             FileSystem& fs,
             Screen& screen,
             Keyboard& keyboard
@@ -35,11 +35,11 @@ namespace com::saxbophone::zench {
         FileSystem& _filesystem;
         // output streams:
         Screen& _screen;
-        std::unique_ptr<OutputFile> _transcript;
-        std::unique_ptr<OutputFile> _commands_script;
+        std::unique_ptr<FileSystem::OutputFile> _transcript;
+        std::unique_ptr<FileSystem::OutputFile> _commands_script;
         // input streams:
         Keyboard& _keyboard;
-        std::unique_ptr<InputFile> _file_with_commands;
+        std::unique_ptr<FileSystem::InputFile> _file_with_commands;
     };
 }
 
