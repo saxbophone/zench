@@ -31,8 +31,69 @@ namespace com::saxbophone::zench {
      */
     class FileSystem : public Component {
     public:
-        class InputFile : public Component {};
-        class OutputFile : public Component {};
+        /**
+         * @brief Top-level abstract base class for abstract file objects
+         * @note This interface is not intended to be inherited from directly
+         * for implementing InputFile/OutputFile.
+         * @details A File is a handle to a file, which can be in the open or
+         * closed state at any given time. Implementors should write their
+         * constructors to produce objects which start off in the open state if
+         * possible, and which can be closed explicitly with a call to .close().
+         * @note Implementors of this interface, or interfaces derived from it,
+         * must make sure that their destructors call .close() on the File
+         * object if it is still open, approximately equivalent to this code:
+         * @code{.cpp}
+         * ~File() {
+         *     if (this->is_open()) {
+         *         this->close();
+         *     }
+         * }
+         * @endcode
+         */
+        class File : public Component {
+        public:
+            /**
+             * @returns whether this File object is currently open or closed
+             */
+            virtual bool is_open() = 0;
+            /**
+             * @brief Closes this File object. The object remembers which file
+             * it is a handle to even after being closed.
+             * @pre `File.is_open() == true`
+             * @post `File.is_open() == false`
+             */
+            virtual void close() = 0;
+            /**
+             * @brief Attempts to re-open a closed File.
+             * @returns whether the File was successfully re-opened or not
+             * @pre `File.is_open() == false`
+             * @note Implementors are not required to support re-opening of files
+             * and if they do not support it, should always return `false`.
+             * If however an implementor does support this feature, then they
+             * must return success/failure as appropriate, and leave the File
+             * object in a valid state according to whether it was opened
+             * successfully, or couldn't be opened (in which case, the File
+             * remains closed).
+             */
+            virtual bool open() = 0;
+        };
+        /**
+         * @brief An abstract file from which bytes can be read
+         * @see File for important remarks about making sure that destructors
+         * of classes implementing this one ensuring that the file is closed
+         * before it is destroyed.
+         */
+        class InputFile : public File {
+        public:
+            virtual char read() = 0; // EOF?
+        };
+        /**
+         * @brief An abstract file to which bytes can be written
+         * @see File for important remarks about making sure that destructors
+         * of classes implementing this one ensuring that the file is closed
+         * before it is destroyed.
+         */
+        class OutputFile : public File {};
         // all the following methods return nullptr when a file could not be retrieved.
         // tries to open a file for reading from. Where the file comes from, is the responsibility of the FileSystem
         // object to determine (such as prompting the user, or opening up a file-picker).
