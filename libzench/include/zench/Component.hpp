@@ -16,14 +16,19 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/.
  */
 
-#ifndef COM_SAXBOPHONE_ZENCH_SCREEN_HPP
-#define COM_SAXBOPHONE_ZENCH_SCREEN_HPP
-
-#include <zench/Component.hpp>
+#ifndef COM_SAXBOPHONE_ZENCH_COMPONENT_HPP
+#define COM_SAXBOPHONE_ZENCH_COMPONENT_HPP
 
 namespace com::saxbophone::zench {
-    class Screen : public Component {
-        // This is meant to be abstract
+    class Component {
+    public:
+        /**
+         * @returns the name of this Zench component.
+         * @details Use this to give your implementations of Screen, Keyboard,
+         * etc. a unique, descriptive identifier. It will be used in logs and
+         * error messages.
+         */
+        constexpr virtual const char* name() = 0;
     };
 }
 

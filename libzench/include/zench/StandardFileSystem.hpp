@@ -21,13 +21,14 @@
 
 #include <string>
 
+#include <zench/Component.hpp>
 #include <zench/FileSystem.hpp>
 
 namespace com::saxbophone::zench {
     // abstracts out the method of prompting for filenames
     // i.e. one implementation could ask for a filename on the console, another
     // could spawn a file-picker dialog...
-    class StandardFilePicker {
+    class StandardFilePicker : public Component {
     public:
         virtual std::string get_filename() = 0;
     };
@@ -35,6 +36,9 @@ namespace com::saxbophone::zench {
     class StandardFileSystem : public FileSystem {
     public:
         StandardFileSystem(StandardFilePicker& picker);
+        constexpr const char* name() override {
+            return "StandardFileSystem";
+        }
         std::optional<InputFile> open_for_read() override;
         std::optional<InputFile> open_for_read(std::string filename) override;
         std::optional<OutputFile> open_for_write() override;

@@ -22,6 +22,8 @@
 #include <variant>
 #include <vector>
 
+#include <zench/Component.hpp>
+
 namespace com::saxbophone::zench {
     /**
      * @brief This is the lowest-level keyboard driver for use with Zench.
@@ -39,7 +41,7 @@ namespace com::saxbophone::zench {
      * a READ opcode has started executing, but this is beyond scope of a Keyboard
      * interface to worry about in any case.
      */
-    class Keyboard {
+    class Keyboard : public Component {
     public:
         // these are keycodes that may not be well supported by UTF-16, but which Z-machine requires input for
         enum class SpecialKey {

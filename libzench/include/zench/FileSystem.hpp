@@ -22,11 +22,13 @@
 #include <optional> // optional
 #include <string>   // string
 
+#include <zench/Component.hpp>
+
 namespace com::saxbophone::zench {
     class InputFile {};
     class OutputFile {};
     // abstracted interface for filesystem, allows ZMachine to be agnostic of how files are handled
-    class FileSystem {
+    class FileSystem : public Component {
     public:
         // all the following methods return std::nullopt when a file could not be retrieved.
         // tries to open a file for reading from. Where the file comes from, is the responsibility of the FileSystem
