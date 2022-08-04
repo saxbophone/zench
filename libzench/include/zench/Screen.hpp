@@ -19,6 +19,10 @@
 #ifndef COM_SAXBOPHONE_ZENCH_SCREEN_HPP
 #define COM_SAXBOPHONE_ZENCH_SCREEN_HPP
 
+#include <cstdint> // uint8_t
+
+#include <utility> // pair
+
 #include <zench/Component.hpp>
 
 namespace com::saxbophone::zench {
@@ -47,6 +51,9 @@ namespace com::saxbophone::zench {
          * - change visible cursor style/blink settings/visibility
          * - get resize events?
          */
+        virtual std::pair<std::uint8_t, std::uint8_t> get_dimensions() = 0;
+        virtual bool supports_colour() = 0;
+        virtual bool supports_truecolour() = 0;
     };
 }
 
