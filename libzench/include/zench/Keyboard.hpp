@@ -57,6 +57,7 @@ namespace com::saxbophone::zench {
             // numpad keys --maybe unused? Or perhaps these are to allow reading numpad separately from the numeric keys
             N0, N1, N2, N3, N4, N5, N6, N7, N8, N9,
             // mouse input codes (yes, some of the mouse input is handled via the "keyboard"!)
+            // NOTE: passive polling of the mouse state is handled elsewhere, in the Mouse class/interface
             MenuClick, DoubleClick, SingleClick,
         };
         /*
