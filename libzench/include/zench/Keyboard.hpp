@@ -19,6 +19,8 @@
 #ifndef COM_SAXBOPHONE_ZENCH_KEYBOARD_HPP
 #define COM_SAXBOPHONE_ZENCH_KEYBOARD_HPP
 
+#include <cstdint>
+
 #include <variant>
 #include <vector>
 
@@ -65,7 +67,7 @@ namespace com::saxbophone::zench {
          * Unicode. In the case of the Z-machine, only the Basic Multilingual
          * Plane (BMP) of Unicode can be used, i.e. the first 65,536 codepoints.
          */
-        using Event = std::variant<char32_t, SpecialKey>;
+        using Event = std::variant<std::uint16_t, SpecialKey>;
         /**
          * @returns whether this Keyboard driver supports mouse input or not
          */
