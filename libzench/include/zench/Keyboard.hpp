@@ -60,12 +60,18 @@ namespace com::saxbophone::zench {
             MenuClick, DoubleClick, SingleClick,
         };
         /*
-         * NOTE: normal text input should be sent as sequences of Unicode
-         * codepoints. The Z-machine converts them to ZSCII, discarding any
-         * codepoints that don't fit within 16 bits i.e. greater than 0xffff.
-         * NOTE: this is NOT the same thing as UTF-16, which can encode all of
-         * Unicode. In the case of the Z-machine, only the Basic Multilingual
-         * Plane (BMP) of Unicode can be used, i.e. the first 65,536 codepoints.
+         * Keyboard Events are either Unicode codepoints for the character that
+         * was typed, or a SpecialKey value for those keys unlikely to be
+         * capturable by text input.
+         * NOTE: We use uint16_t for Unicode codepoints, because the Z-Machine
+         * is restricted to only handling characters from the Basic Multilingual
+         * Plane (first 65,536 codepoints). Even then, it's only allowed to
+         * handle a specified subset of them at once (according to the Unicode
+         * translation table), but it's not Keyboard's job to translate these.
+         * WARN: Keyboard codepoints are literal Unicode codepoint values, these
+         * are NOT UTF-16 characters! A valid method to produce these codepoints
+         * is to take your text input as UTF-32, discard characters greater than
+         * 0xFFFF and cast the remaining ones to uint16_t.
          */
         using Event = std::variant<std::uint16_t, SpecialKey>;
         /**
